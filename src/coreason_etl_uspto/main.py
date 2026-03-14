@@ -8,7 +8,7 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_etl_uspto
 
-from coreason_etl_uspto.utils.logger import logger
+from .utils.logger import logger
 
 
 def hello_world() -> str:
