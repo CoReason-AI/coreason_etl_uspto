@@ -39,4 +39,10 @@ class FederatedEnvironmentPolicy(BaseSettings):
         description="User-Agent for USPTO Open Data Portal Endpoint",
     )
 
+    pghost: str = Field(default="localhost", description="PostgreSQL host.")
+    pgport: int = Field(default=5432, description="PostgreSQL port.")
+    pguser: str = Field(default="postgres", description="PostgreSQL user.")
+    pgpassword: str = Field(default="postgres", description="PostgreSQL password.")
+    pgdatabase: str = Field(default="coreason_etl_uspto", description="PostgreSQL database.")
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
