@@ -55,4 +55,14 @@ class FederatedEnvironmentPolicy(BaseSettings):
         description="UUID Namespace for deterministic entity hashing (UUID5).",
     )
 
+    uspto_stream_chunk_size: int = Field(
+        default=8192,
+        description="Chunk size in bytes for reading HTTP stream. Must be deterministic.",
+    )
+
+    uspto_max_memory_mb: int = Field(
+        default=10,
+        description="Maximum memory in MB to allocate before spilling to disk for zip decompression.",
+    )
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
