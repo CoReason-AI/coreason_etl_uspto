@@ -44,7 +44,8 @@ dev = [
     "mkdocstrings-python",
     "types-pyyaml>=6.0.12.20250915",
     "tzdata>=2025.3",
-    "pytest-xdist>=3.6.1"
+    "pytest-xdist>=3.6.1",
+    "types-requests>=2.32.4.20260107",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -82,4 +83,4 @@ asyncio_mode = "auto"
 omit = ["tests/*"]
 
 [tool.deptry]
-ignore = ["DEP002"]
+ignore = ["DEP002", "DEP003"]
