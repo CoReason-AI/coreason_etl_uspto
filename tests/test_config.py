@@ -20,8 +20,8 @@ def test_default_federated_environment_policy() -> None:
     assert policy.app_env == "development"
     assert policy.debug is False
     assert policy.log_level == "INFO"
-    assert policy.uspto_grants_api_endpoint == "https://data.uspto.gov/api/v1/datasets/products/ptgrxml"
-    assert policy.uspto_apps_api_endpoint == "https://data.uspto.gov/api/v1/datasets/products/pba"
+    assert policy.uspto_grants_api_endpoint == "https://data.uspto.gov/bulkdata/datasets/ptgrxml"
+    assert policy.uspto_apps_api_endpoint == "https://data.uspto.gov/bulkdata/datasets/pba"
     assert policy.uspto_user_agent == "CoReason-Bot (contact: admin@coreason.com)"
     assert policy.pghost == "localhost"
     assert policy.pgport == 5432

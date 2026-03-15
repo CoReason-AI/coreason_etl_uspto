@@ -33,14 +33,32 @@ def fetch_zip_links(discovery_url: str, session: requests.Session) -> list[str]:
     response = session.get(discovery_url)
     response.raise_for_status()
 
-    data = response.json()
+    content_type = response.headers.get("Content-Type", "").lower()
 
-    # Assuming the USPTO API returns a JSON structure containing results with fileDownloadUrl
-    zip_links = [
-        result["fileDownloadUrl"]
-        for result in data.get("results", [])
-        if "fileDownloadUrl" in result and result["fileDownloadUrl"].endswith(".zip")
-    ]
+    zip_links = []
+    if "application/json" in content_type:
+        data = response.json()
+        zip_links = [
+            result["fileDownloadUrl"]
+            for result in data.get("results", [])
+            if "fileDownloadUrl" in result and result["fileDownloadUrl"].endswith(".zip")
+        ]
+    else:
+        # Fallback to simple HTML parsing if the endpoint returns HTML
+        from lxml import html
+
+        tree = html.fromstring(response.content)
+        links = tree.xpath("//a/@href")
+        if isinstance(links, list):
+            for link in links:
+                if isinstance(link, str) and link.endswith(".zip"):
+                    if link.startswith("http"):
+                        zip_links.append(link)
+                    else:
+                        # Resolve relative URLs
+                        from urllib.parse import urljoin
+
+                        zip_links.append(urljoin(discovery_url, link))
 
     logger.info(f"Discovered {len(zip_links)} ZIP links")
     return zip_links
