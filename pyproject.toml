@@ -15,11 +15,11 @@ dependencies = [
     "loguru>=0.7.2",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.13.1",
-    "dlt>=1.0.0",
+    "dlt[postgres]>=1.0.0",
     "requests>=2.31.0",
     "lxml>=5.1.0",
     "xmltodict>=0.13.0",
-    "polars>=0.20.10"
+    "polars>=0.20.10",
 ]
 license = { file = "LICENSE" }
 classifiers = [
