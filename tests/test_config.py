@@ -28,6 +28,7 @@ def test_default_federated_environment_policy() -> None:
     assert policy.pguser == "postgres"
     assert policy.pgpassword == "postgres"
     assert policy.pgdatabase == "coreason_etl_uspto"
+    assert policy.coreason_entity_namespace == "1b671a64-40d5-491e-99b0-da01ff1f3341"
 
 
 @given(
@@ -43,6 +44,7 @@ def test_default_federated_environment_policy() -> None:
     pguser=st.text(min_size=1),
     pgpassword=st.text(min_size=1),
     pgdatabase=st.text(min_size=1),
+    coreason_entity_namespace=st.text(min_size=1),
 )
 def test_federated_environment_policy_valid(
     app_env: str,
@@ -57,6 +59,7 @@ def test_federated_environment_policy_valid(
     pguser: str,
     pgpassword: str,
     pgdatabase: str,
+    coreason_entity_namespace: str,
 ) -> None:
     policy = FederatedEnvironmentPolicy(
         app_env=app_env,
@@ -71,6 +74,7 @@ def test_federated_environment_policy_valid(
         pguser=pguser,
         pgpassword=pgpassword,
         pgdatabase=pgdatabase,
+        coreason_entity_namespace=coreason_entity_namespace,
     )
     assert policy.app_env == app_env
     assert policy.debug is debug
@@ -84,6 +88,7 @@ def test_federated_environment_policy_valid(
     assert policy.pguser == pguser
     assert policy.pgpassword == pgpassword
     assert policy.pgdatabase == pgdatabase
+    assert policy.coreason_entity_namespace == coreason_entity_namespace
 
 
 def test_invalid_app_env() -> None:
