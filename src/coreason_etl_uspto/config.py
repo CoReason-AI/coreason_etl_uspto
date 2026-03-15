@@ -29,9 +29,14 @@ class FederatedEnvironmentPolicy(BaseSettings):
         default="INFO", description="The verbosity level for the centralized logging architecture."
     )
 
-    uspto_api_endpoint: str = Field(
-        default="https://data.uspto.gov/bulkdata/datasets/ptgrxml",
-        description="USPTO API endpoint for USPTO bulk datasets.",
+    uspto_grants_api_endpoint: str = Field(
+        default="https://data.uspto.gov/api/v1/datasets/products/ptgrxml",
+        description="USPTO API endpoint for USPTO Grants (Red Book) bulk datasets.",
+    )
+
+    uspto_apps_api_endpoint: str = Field(
+        default="https://data.uspto.gov/api/v1/datasets/products/pba",
+        description="USPTO API endpoint for USPTO Applications (Yellow Book) bulk datasets.",
     )
 
     uspto_user_agent: str = Field(

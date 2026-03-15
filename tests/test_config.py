@@ -20,7 +20,8 @@ def test_default_federated_environment_policy() -> None:
     assert policy.app_env == "development"
     assert policy.debug is False
     assert policy.log_level == "INFO"
-    assert policy.uspto_api_endpoint == "https://data.uspto.gov/bulkdata/datasets/ptgrxml"
+    assert policy.uspto_grants_api_endpoint == "https://data.uspto.gov/api/v1/datasets/products/ptgrxml"
+    assert policy.uspto_apps_api_endpoint == "https://data.uspto.gov/api/v1/datasets/products/pba"
     assert policy.uspto_user_agent == "CoReason-Bot (contact: admin@coreason.com)"
     assert policy.pghost == "localhost"
     assert policy.pgport == 5432
@@ -34,7 +35,8 @@ def test_default_federated_environment_policy() -> None:
     debug=st.booleans(),
     secret_key=st.text(min_size=1),
     log_level=st.sampled_from(["DEBUG", "INFO", "WARNING", "ERROR"]),
-    uspto_api_endpoint=st.text(min_size=1),
+    uspto_grants_api_endpoint=st.text(min_size=1),
+    uspto_apps_api_endpoint=st.text(min_size=1),
     uspto_user_agent=st.text(min_size=1),
     pghost=st.text(min_size=1),
     pgport=st.integers(min_value=1, max_value=65535),
@@ -47,7 +49,8 @@ def test_federated_environment_policy_valid(
     debug: bool,
     secret_key: str,
     log_level: str,
-    uspto_api_endpoint: str,
+    uspto_grants_api_endpoint: str,
+    uspto_apps_api_endpoint: str,
     uspto_user_agent: str,
     pghost: str,
     pgport: int,
@@ -60,7 +63,8 @@ def test_federated_environment_policy_valid(
         debug=debug,
         secret_key=secret_key,
         log_level=log_level,
-        uspto_api_endpoint=uspto_api_endpoint,
+        uspto_grants_api_endpoint=uspto_grants_api_endpoint,
+        uspto_apps_api_endpoint=uspto_apps_api_endpoint,
         uspto_user_agent=uspto_user_agent,
         pghost=pghost,
         pgport=pgport,
@@ -72,7 +76,8 @@ def test_federated_environment_policy_valid(
     assert policy.debug is debug
     assert policy.secret_key == secret_key
     assert policy.log_level == log_level
-    assert policy.uspto_api_endpoint == uspto_api_endpoint
+    assert policy.uspto_grants_api_endpoint == uspto_grants_api_endpoint
+    assert policy.uspto_apps_api_endpoint == uspto_apps_api_endpoint
     assert policy.uspto_user_agent == uspto_user_agent
     assert policy.pghost == pghost
     assert policy.pgport == pgport
