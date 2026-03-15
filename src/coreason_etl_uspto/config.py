@@ -50,4 +50,9 @@ class FederatedEnvironmentPolicy(BaseSettings):
     pgpassword: str = Field(default="postgres", description="PostgreSQL password.")
     pgdatabase: str = Field(default="coreason_etl_uspto", description="PostgreSQL database.")
 
+    coreason_entity_namespace: str = Field(
+        default="1b671a64-40d5-491e-99b0-da01ff1f3341",
+        description="UUID Namespace for deterministic entity hashing (UUID5).",
+    )
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
