@@ -24,7 +24,7 @@ from coreason_etl_uspto.utils.logger import logger
 from coreason_etl_uspto.utils.network import establish_epistemic_network_policy
 
 
-@dlt.resource(write_disposition="append", primary_key="file_id")
+@dlt.resource(write_disposition="append", primary_key="file_id")  # type: ignore
 def uspto_grants(start_date: str = "2024-01-01", end_date: str = "2024-12-31") -> Iterator[Any]:
     """
     AGENT INSTRUCTION: This generator streams weekly USPTO Red Book (Grants) files.
@@ -77,7 +77,7 @@ def uspto_grants(start_date: str = "2024-01-01", end_date: str = "2024-12-31") -
             )
 
 
-@dlt.resource(write_disposition="append", primary_key="file_id")
+@dlt.resource(write_disposition="append", primary_key="file_id")  # type: ignore
 def uspto_applications(start_date: str = "2024-01-01", end_date: str = "2024-12-31") -> Iterator[Any]:
     """
     AGENT INSTRUCTION: This generator streams weekly USPTO Yellow Book (Applications) files.
@@ -117,7 +117,7 @@ def uspto_applications(start_date: str = "2024-01-01", end_date: str = "2024-12-
             )
 
 
-@dlt.source
+@dlt.source  # type: ignore
 def uspto_bulk(start_date: str = "2024-01-01", end_date: str = "2024-12-31") -> Any:
     """
     AGENT INSTRUCTION: This source orchestrates the USPTO pipeline fetching both Grants and Applications.
