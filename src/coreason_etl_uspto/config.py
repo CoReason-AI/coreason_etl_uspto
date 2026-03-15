@@ -30,12 +30,12 @@ class FederatedEnvironmentPolicy(BaseSettings):
     )
 
     uspto_grants_api_endpoint: str = Field(
-        default="https://data.uspto.gov/api/v1/datasets/products/ptgrxml",
+        default="https://data.uspto.gov/bulkdata/datasets/ptgrxml",
         description="USPTO API endpoint for USPTO Grants (Red Book) bulk datasets.",
     )
 
     uspto_apps_api_endpoint: str = Field(
-        default="https://data.uspto.gov/api/v1/datasets/products/pba",
+        default="https://data.uspto.gov/bulkdata/datasets/pba",
         description="USPTO API endpoint for USPTO Applications (Yellow Book) bulk datasets.",
     )
 

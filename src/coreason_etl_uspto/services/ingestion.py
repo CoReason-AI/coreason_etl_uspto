@@ -17,7 +17,6 @@ so lxml sees a valid document. It then yields individual patent dicts.
 import datetime
 import zipfile
 from collections.abc import Iterator
-from io import BytesIO
 from typing import Any
 
 import requests
@@ -48,35 +47,31 @@ def stream_uspto_zip(url: str, session: requests.Session) -> Iterator[bytes]:
     # To keep it memory efficient without hitting disk, we can use an approach if possible,
     # but ZipFile needs seek. Let's use a temporary file or BytesIO for the zip archive.
 
-    # We will read the response into a BytesIO object.
-    # For a real 5GB unzipped file, the zip is around 100-200MB.
-    # This might take some RAM, but much less than 5GB.
+    # To stream the zip securely without keeping the entire zip in memory,
+    # we can use a SpooledTemporaryFile which falls back to disk if it exceeds a small buffer.
+    # The max_size is set to 10MB; above that, it writes to a temporary file on disk.
+    from tempfile import SpooledTemporaryFile
 
-    # Let's read chunks and yield them through the fake root wrapper.
-    # Wait, the best way to handle streaming zip without seek is `stream-unzip` package or similar.
-    # Since we can only use standard library or provided deps (requests, lxml, xmltodict, polars, dlt),
-    # we'll read the response content into BytesIO for the ZIP archive to make it seekable.
+    with SpooledTemporaryFile(max_size=10 * 1024 * 1024) as temp_file:
+        for chunk in response.iter_content(chunk_size=8192):
+            if chunk:
+                temp_file.write(chunk)
 
-    zip_buffer = BytesIO()
-    for chunk in response.iter_content(chunk_size=8192):
-        if chunk:
-            zip_buffer.write(chunk)
+        temp_file.seek(0)
 
-    zip_buffer.seek(0)
+        with zipfile.ZipFile(temp_file) as z:
+            # Assuming one XML file per ZIP
+            xml_filename = [name for name in z.namelist() if name.endswith(".xml")]
+            if not xml_filename:
+                logger.warning(f"No XML files found in {url}")
+                return
 
-    with zipfile.ZipFile(zip_buffer) as z:
-        # Assuming one XML file per ZIP
-        xml_filename = [name for name in z.namelist() if name.endswith(".xml")]
-        if not xml_filename:
-            logger.warning(f"No XML files found in {url}")
-            return
-
-        with z.open(xml_filename[0]) as xml_file:
-            while True:
-                chunk = xml_file.read(8192)
-                if not chunk:
-                    break
-                yield chunk
+            with z.open(xml_filename[0]) as xml_file:
+                while True:
+                    chunk = xml_file.read(8192)
+                    if not chunk:
+                        break
+                    yield chunk
 
 
 class FakeRootStream:

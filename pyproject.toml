@@ -46,6 +46,8 @@ dev = [
     "tzdata>=2025.3",
     "pytest-xdist>=3.6.1",
     "types-requests>=2.32.4.20260107",
+    "types-xmltodict>=1.0.1.20260113",
+    "lxml-stubs>=0.5.1",
 ]
 
 [tool.hatch.build.targets.wheel]
