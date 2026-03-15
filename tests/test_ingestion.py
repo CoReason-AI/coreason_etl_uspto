@@ -34,6 +34,7 @@ def test_stream_uspto_zip_success() -> None:
     zip_bytes = create_mock_zip(xml_data)
 
     def iter_content(chunk_size: int = 1) -> Iterator[bytes]:
+        _ = chunk_size
         yield zip_bytes
 
     mock_response.iter_content = iter_content
@@ -54,6 +55,7 @@ def test_stream_uspto_zip_no_xml() -> None:
     zip_bytes = create_mock_zip(b"some text", "data.txt")
 
     def iter_content(chunk_size: int = 1) -> Iterator[bytes]:
+        _ = chunk_size
         yield zip_bytes
 
     mock_response.iter_content = iter_content
@@ -154,6 +156,7 @@ def test_parse_uspto_stream_failure() -> None:
     original_parse = xmltodict.parse
 
     def failing_parse(*args: Any, **kwargs: Any) -> Any:
+        _ = args, kwargs
         raise ValueError("Simulated parsing error")
 
     try:

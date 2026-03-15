@@ -34,6 +34,7 @@ def test_uspto_grants_resource(
     mock_fetch: MagicMock,
     mock_state: MagicMock,
 ) -> None:
+    _ = _mock_network
     mock_state.return_value = {"processed_files": []}
     mock_fetch.return_value = ["https://example.com/test1.zip"]
 
@@ -63,6 +64,7 @@ def test_uspto_applications_resource(
     mock_fetch: MagicMock,
     mock_state: MagicMock,
 ) -> None:
+    _ = _mock_network
     mock_state.return_value = {"processed_files": ["https://example.com/test1.zip"]}
     mock_fetch.return_value = ["https://example.com/test1.zip", "https://example.com/test2.zip"]
 
@@ -87,6 +89,7 @@ def test_uspto_applications_resource(
 def test_uspto_grants_resource_exception(
     _mock_network: MagicMock, mock_stream: MagicMock, mock_fetch: MagicMock, mock_state: MagicMock
 ) -> None:
+    _ = _mock_network
     mock_state.return_value = {"processed_files": []}
     mock_fetch.return_value = ["https://example.com/test1.zip"]
 
@@ -110,6 +113,7 @@ def test_uspto_grants_resource_error_record(
     mock_fetch: MagicMock,
     mock_state: MagicMock,
 ) -> None:
+    _ = _mock_network
     mock_state.return_value = {"processed_files": []}
     mock_fetch.return_value = ["https://example.com/test1.zip"]
 
@@ -133,6 +137,7 @@ def test_uspto_grants_resource_error_record(
 def test_uspto_applications_resource_exception(
     _mock_network: MagicMock, mock_stream: MagicMock, mock_fetch: MagicMock, mock_state: MagicMock
 ) -> None:
+    _ = _mock_network
     mock_state.return_value = {"processed_files": []}
     mock_fetch.return_value = ["https://example.com/test1.zip"]
 
@@ -156,6 +161,7 @@ def test_uspto_applications_resource_success(
     mock_fetch: MagicMock,
     mock_state: MagicMock,
 ) -> None:
+    _ = _mock_network
     mock_state.return_value = {"processed_files": []}
     mock_fetch.return_value = ["https://example.com/test1.zip"]
 
