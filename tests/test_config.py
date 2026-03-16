@@ -31,6 +31,8 @@ def test_default_federated_environment_policy() -> None:
     assert policy.coreason_entity_namespace == "1b671a64-40d5-491e-99b0-da01ff1f3341"
     assert policy.uspto_stream_chunk_size == 8192
     assert policy.uspto_max_memory_mb == 10
+    assert policy.uspto_http_timeout == 60
+    assert policy.uspto_max_retries == 3
 
 
 @given(
@@ -49,6 +51,8 @@ def test_default_federated_environment_policy() -> None:
     coreason_entity_namespace=st.text(min_size=1),
     uspto_stream_chunk_size=st.integers(min_value=1),
     uspto_max_memory_mb=st.integers(min_value=1),
+    uspto_http_timeout=st.integers(min_value=1),
+    uspto_max_retries=st.integers(min_value=0),
 )
 def test_federated_environment_policy_valid(
     app_env: str,
@@ -66,6 +70,8 @@ def test_federated_environment_policy_valid(
     coreason_entity_namespace: str,
     uspto_stream_chunk_size: int,
     uspto_max_memory_mb: int,
+    uspto_http_timeout: int,
+    uspto_max_retries: int,
 ) -> None:
     policy = FederatedEnvironmentPolicy(
         app_env=app_env,
@@ -83,6 +89,8 @@ def test_federated_environment_policy_valid(
         coreason_entity_namespace=coreason_entity_namespace,
         uspto_stream_chunk_size=uspto_stream_chunk_size,
         uspto_max_memory_mb=uspto_max_memory_mb,
+        uspto_http_timeout=uspto_http_timeout,
+        uspto_max_retries=uspto_max_retries,
     )
     assert policy.app_env == app_env
     assert policy.debug is debug
@@ -99,6 +107,8 @@ def test_federated_environment_policy_valid(
     assert policy.coreason_entity_namespace == coreason_entity_namespace
     assert policy.uspto_stream_chunk_size == uspto_stream_chunk_size
     assert policy.uspto_max_memory_mb == uspto_max_memory_mb
+    assert policy.uspto_http_timeout == uspto_http_timeout
+    assert policy.uspto_max_retries == uspto_max_retries
 
 
 def test_invalid_app_env() -> None:

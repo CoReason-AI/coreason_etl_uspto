@@ -65,4 +65,14 @@ class FederatedEnvironmentPolicy(BaseSettings):
         description="Maximum memory in MB to allocate before spilling to disk for zip decompression.",
     )
 
+    uspto_http_timeout: int = Field(
+        default=60,
+        description="HTTP request timeout in seconds.",
+    )
+
+    uspto_max_retries: int = Field(
+        default=3,
+        description="Maximum number of HTTP retries for resilient requests.",
+    )
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
