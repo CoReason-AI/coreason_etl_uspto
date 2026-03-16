@@ -1,0 +1,21 @@
+<<<<<<< SEARCH
+    uspto_max_memory_mb: int = Field(
+        default=10,
+        description="Maximum memory in MB to allocate before spilling to disk for zip decompression.",
+    )
+=======
+    uspto_max_memory_mb: int = Field(
+        default=10,
+        description="Maximum memory in MB to allocate before spilling to disk for zip decompression.",
+    )
+
+    uspto_http_timeout: int = Field(
+        default=60,
+        description="HTTP request timeout in seconds.",
+    )
+
+    uspto_max_retries: int = Field(
+        default=3,
+        description="Maximum number of HTTP retries for resilient requests.",
+    )
+>>>>>>> REPLACE
