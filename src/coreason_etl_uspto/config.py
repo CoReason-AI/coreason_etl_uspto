@@ -44,6 +44,16 @@ class FederatedEnvironmentPolicy(BaseSettings):
         description="User-Agent for USPTO Open Data Portal Endpoint",
     )
 
+    dlt_pipeline_name: str = Field(
+        default="uspto_pipeline",
+        description="The name of the dlt pipeline.",
+    )
+
+    dlt_dataset_name: str = Field(
+        default="uspto_bronze",
+        description="The dataset name for the Bronze layer.",
+    )
+
     pghost: str = Field(default="localhost", description="PostgreSQL host.")
     pgport: int = Field(default=5432, description="PostgreSQL port.")
     pguser: str = Field(default="postgres", description="PostgreSQL user.")

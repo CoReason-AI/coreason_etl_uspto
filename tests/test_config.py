@@ -23,6 +23,8 @@ def test_default_federated_environment_policy() -> None:
     assert policy.uspto_grants_api_endpoint == "https://data.uspto.gov/bulkdata/datasets/ptgrxml"
     assert policy.uspto_apps_api_endpoint == "https://data.uspto.gov/bulkdata/datasets/pba"
     assert policy.uspto_user_agent == "CoReason-Bot (contact: admin@coreason.com)"
+    assert policy.dlt_pipeline_name == "uspto_pipeline"
+    assert policy.dlt_dataset_name == "uspto_bronze"
     assert policy.pghost == "localhost"
     assert policy.pgport == 5432
     assert policy.pguser == "postgres"
@@ -43,6 +45,8 @@ def test_default_federated_environment_policy() -> None:
     uspto_grants_api_endpoint=st.text(min_size=1),
     uspto_apps_api_endpoint=st.text(min_size=1),
     uspto_user_agent=st.text(min_size=1),
+    dlt_pipeline_name=st.text(min_size=1),
+    dlt_dataset_name=st.text(min_size=1),
     pghost=st.text(min_size=1),
     pgport=st.integers(min_value=1, max_value=65535),
     pguser=st.text(min_size=1),
@@ -62,6 +66,8 @@ def test_federated_environment_policy_valid(
     uspto_grants_api_endpoint: str,
     uspto_apps_api_endpoint: str,
     uspto_user_agent: str,
+    dlt_pipeline_name: str,
+    dlt_dataset_name: str,
     pghost: str,
     pgport: int,
     pguser: str,
@@ -81,6 +87,8 @@ def test_federated_environment_policy_valid(
         uspto_grants_api_endpoint=uspto_grants_api_endpoint,
         uspto_apps_api_endpoint=uspto_apps_api_endpoint,
         uspto_user_agent=uspto_user_agent,
+        dlt_pipeline_name=dlt_pipeline_name,
+        dlt_dataset_name=dlt_dataset_name,
         pghost=pghost,
         pgport=pgport,
         pguser=pguser,
@@ -99,6 +107,8 @@ def test_federated_environment_policy_valid(
     assert policy.uspto_grants_api_endpoint == uspto_grants_api_endpoint
     assert policy.uspto_apps_api_endpoint == uspto_apps_api_endpoint
     assert policy.uspto_user_agent == uspto_user_agent
+    assert policy.dlt_pipeline_name == dlt_pipeline_name
+    assert policy.dlt_dataset_name == dlt_dataset_name
     assert policy.pghost == pghost
     assert policy.pgport == pgport
     assert policy.pguser == pguser
