@@ -146,21 +146,21 @@ def normalize_silver(df: pl.DataFrame) -> pl.DataFrame:
         # We need to map elements because the XML parsed structure is dicts/lists of dicts which
         # might have varied shapes that Polars nested types can't easily unify via coalesce statically.
         def process_inventor_list(inv_list: Any) -> list[dict[str, Any]] | None:
-            if inv_list is None: # pragma: no cover
+            if inv_list is None:  # pragma: no cover
                 return None
 
-            if isinstance(inv_list, pl.Series): # pragma: no cover
+            if isinstance(inv_list, pl.Series):  # pragma: no cover
                 if inv_list.is_empty():
                     return None
                 inv_list = inv_list.to_list()
 
-            if hasattr(inv_list, "to_list"): # pragma: no cover
+            if hasattr(inv_list, "to_list"):  # pragma: no cover
                 inv_list = inv_list.to_list()
 
             if not inv_list:
                 return None
 
-            if isinstance(inv_list, str): # pragma: no cover
+            if isinstance(inv_list, str):  # pragma: no cover
                 return None
 
             items = inv_list if isinstance(inv_list, list) else [inv_list]
@@ -194,47 +194,59 @@ def normalize_silver(df: pl.DataFrame) -> pl.DataFrame:
 
                     state_str = str(state).upper() if state else None
                     if state_str and len(state_str) != 2:
-                        state_str = None # pragma: no cover
+                        state_str = None  # pragma: no cover
 
-                    res.append({
-                        "first_name": str(first_name).title() if first_name else None,
-                        "last_name": str(last_name).title() if last_name else None,
-                        "city": str(city).upper() if city else None,
-                        "state": state_str,
-                    })
+                    res.append(
+                        {
+                            "first_name": str(first_name).title() if first_name else None,
+                            "last_name": str(last_name).title() if last_name else None,
+                            "city": str(city).upper() if city else None,
+                            "state": state_str,
+                        }
+                    )
                 except Exception as e:
                     logger.debug(f"Failed to process inventor item: {e}")
             return res
-        return col.map_elements(process_inventor_list, return_dtype=pl.List(pl.Struct([
-            pl.Field("first_name", pl.String),
-            pl.Field("last_name", pl.String),
-            pl.Field("city", pl.String),
-            pl.Field("state", pl.String),
-        ])))
 
-    inventors = pl.coalesce([
-        extract_inventors(pl.col("us-patent-grant.us-parties.inventors.inventor"), is_red=True),
-        extract_inventors(pl.col("PATDOC.SDOBI.B700.B720"), is_red=False)
-    ]).alias("inventors")
+        return col.map_elements(
+            process_inventor_list,
+            return_dtype=pl.List(
+                pl.Struct(
+                    [
+                        pl.Field("first_name", pl.String),
+                        pl.Field("last_name", pl.String),
+                        pl.Field("city", pl.String),
+                        pl.Field("state", pl.String),
+                    ]
+                )
+            ),
+        )
+
+    inventors = pl.coalesce(
+        [
+            extract_inventors(pl.col("us-patent-grant.us-parties.inventors.inventor"), is_red=True),
+            extract_inventors(pl.col("PATDOC.SDOBI.B700.B720"), is_red=False),
+        ]
+    ).alias("inventors")
 
     # 7. Entity Mapping (Assignees)
     def extract_assignees(col: pl.Expr, is_red: bool) -> pl.Expr:
         def process_assignee_list(ass_list: Any) -> list[dict[str, Any]] | None:
-            if ass_list is None: # pragma: no cover
+            if ass_list is None:  # pragma: no cover
                 return None
 
-            if isinstance(ass_list, pl.Series): # pragma: no cover
+            if isinstance(ass_list, pl.Series):  # pragma: no cover
                 if ass_list.is_empty():
                     return None
                 ass_list = ass_list.to_list()
 
-            if hasattr(ass_list, "to_list"): # pragma: no cover
+            if hasattr(ass_list, "to_list"):  # pragma: no cover
                 ass_list = ass_list.to_list()
 
             if not ass_list:
                 return None
 
-            if isinstance(ass_list, str): # pragma: no cover
+            if isinstance(ass_list, str):  # pragma: no cover
                 return None
 
             items = ass_list if isinstance(ass_list, list) else [ass_list]
@@ -255,30 +267,44 @@ def normalize_silver(df: pl.DataFrame) -> pl.DataFrame:
                     if role == "02":
                         role = "Assignee"
 
-                    res.append({
-                        "org_name": str(org_name) if org_name else None,
-                        "role_code": str(role) if role else None,
-                    })
+                    res.append(
+                        {
+                            "org_name": str(org_name) if org_name else None,
+                            "role_code": str(role) if role else None,
+                        }
+                    )
                 except Exception as e:
                     logger.debug(f"Failed to process assignee item: {e}")
             return res
-        return col.map_elements(process_assignee_list, return_dtype=pl.List(pl.Struct([
-            pl.Field("org_name", pl.String),
-            pl.Field("role_code", pl.String),
-        ])))
 
-    # We apply coalesce and then unnest/explode to map coreason_id, or we map it directly if we do it within the map_elements
+        return col.map_elements(
+            process_assignee_list,
+            return_dtype=pl.List(
+                pl.Struct(
+                    [
+                        pl.Field("org_name", pl.String),
+                        pl.Field("role_code", pl.String),
+                    ]
+                )
+            ),
+        )
+
+    # We apply coalesce and then unnest/explode to map coreason_id,
+    # or map it directly if we do it within the map_elements.
     # The requirement asks to use clean_org_name and compute_coreason_id on the extracted list.
-    assignees_raw = pl.coalesce([
-        extract_assignees(pl.col("us-patent-grant.us-parties.assignees.assignee"), is_red=True),
-        extract_assignees(pl.col("PATDOC.SDOBI.B700.B730"), is_red=False)
-    ]).alias("assignees")
+    assignees_raw = pl.coalesce(
+        [
+            extract_assignees(pl.col("us-patent-grant.us-parties.assignees.assignee"), is_red=True),
+            extract_assignees(pl.col("PATDOC.SDOBI.B700.B730"), is_red=False),
+        ]
+    ).alias("assignees")
 
     # The requirement specifically says to use clean_org_name() utility before hashing
     # and compute_coreason_id() to hash it.
     # Because `assignees` is a list of structs, we can either explode, apply, and implode,
     # or apply it using list expressions in Polars.
     from coreason_etl_uspto.config import FederatedEnvironmentPolicy
+
     policy = FederatedEnvironmentPolicy()
 
     # Since struct operations are giving `StructFieldNotFoundError` when unnested sequentially,
@@ -287,14 +313,20 @@ def normalize_silver(df: pl.DataFrame) -> pl.DataFrame:
     # Use struct.field to recreate a struct, since struct.select is not an attribute in some Polars versions
     assignees_final = (
         assignees_raw.list.eval(
-            pl.element().struct.with_fields([
-                clean_org_name(pl.element().struct.field("org_name")).alias("clean_org_name")
-            ])
-        ).list.eval(
-            pl.element().struct.with_fields([
-                compute_coreason_id(policy.coreason_entity_namespace, pl.element().struct.field("clean_org_name")).alias("coreason_id")
-            ])
-        ).list.eval(
+            pl.element().struct.with_fields(
+                [clean_org_name(pl.element().struct.field("org_name")).alias("clean_org_name")]
+            )
+        )
+        .list.eval(
+            pl.element().struct.with_fields(
+                [
+                    compute_coreason_id(
+                        policy.coreason_entity_namespace, pl.element().struct.field("clean_org_name")
+                    ).alias("coreason_id")
+                ]
+            )
+        )
+        .list.eval(
             pl.struct(
                 pl.element().struct.field("org_name"),
                 pl.element().struct.field("role_code"),
