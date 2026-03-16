@@ -12,8 +12,9 @@ from unittest.mock import MagicMock
 
 import pytest
 import requests
-from coreason_etl_uspto.services.discovery import fetch_zip_links
 from requests.exceptions import HTTPError
+
+from coreason_etl_uspto.services.discovery import fetch_zip_links
 
 
 def test_fetch_zip_links_json_success() -> None:
