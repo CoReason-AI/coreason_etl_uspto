@@ -29,6 +29,8 @@ def test_default_federated_environment_policy() -> None:
     assert policy.pgpassword == "postgres"
     assert policy.pgdatabase == "coreason_etl_uspto"
     assert policy.coreason_entity_namespace == "1b671a64-40d5-491e-99b0-da01ff1f3341"
+    assert policy.uspto_stream_chunk_size == 8192
+    assert policy.uspto_max_memory_mb == 10
 
 
 @given(
@@ -45,6 +47,8 @@ def test_default_federated_environment_policy() -> None:
     pgpassword=st.text(min_size=1),
     pgdatabase=st.text(min_size=1),
     coreason_entity_namespace=st.text(min_size=1),
+    uspto_stream_chunk_size=st.integers(min_value=1),
+    uspto_max_memory_mb=st.integers(min_value=1),
 )
 def test_federated_environment_policy_valid(
     app_env: str,
@@ -60,6 +64,8 @@ def test_federated_environment_policy_valid(
     pgpassword: str,
     pgdatabase: str,
     coreason_entity_namespace: str,
+    uspto_stream_chunk_size: int,
+    uspto_max_memory_mb: int,
 ) -> None:
     policy = FederatedEnvironmentPolicy(
         app_env=app_env,
@@ -75,6 +81,8 @@ def test_federated_environment_policy_valid(
         pgpassword=pgpassword,
         pgdatabase=pgdatabase,
         coreason_entity_namespace=coreason_entity_namespace,
+        uspto_stream_chunk_size=uspto_stream_chunk_size,
+        uspto_max_memory_mb=uspto_max_memory_mb,
     )
     assert policy.app_env == app_env
     assert policy.debug is debug
@@ -89,6 +97,8 @@ def test_federated_environment_policy_valid(
     assert policy.pgpassword == pgpassword
     assert policy.pgdatabase == pgdatabase
     assert policy.coreason_entity_namespace == coreason_entity_namespace
+    assert policy.uspto_stream_chunk_size == uspto_stream_chunk_size
+    assert policy.uspto_max_memory_mb == uspto_max_memory_mb
 
 
 def test_invalid_app_env() -> None:

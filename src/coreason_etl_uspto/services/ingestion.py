@@ -23,10 +23,13 @@ import requests
 import xmltodict
 from lxml import etree
 
+from coreason_etl_uspto.config import FederatedEnvironmentPolicy
 from coreason_etl_uspto.utils.logger import logger
 
 
-def stream_uspto_zip(url: str, session: requests.Session) -> Iterator[bytes]:
+def stream_uspto_zip(
+    url: str, session: requests.Session, policy: FederatedEnvironmentPolicy | None = None
+) -> Iterator[bytes]:
     """
     AGENT INSTRUCTION: This generator streams the ZIP file from the given URL and decompresses it on the fly.
     """
@@ -52,8 +55,11 @@ def stream_uspto_zip(url: str, session: requests.Session) -> Iterator[bytes]:
     # The max_size is set to 10MB; above that, it writes to a temporary file on disk.
     from tempfile import SpooledTemporaryFile
 
-    with SpooledTemporaryFile(max_size=10 * 1024 * 1024) as temp_file:
-        for chunk in response.iter_content(chunk_size=8192):
+    if policy is None:
+        policy = FederatedEnvironmentPolicy()
+
+    with SpooledTemporaryFile(max_size=policy.uspto_max_memory_mb * 1024 * 1024) as temp_file:
+        for chunk in response.iter_content(chunk_size=policy.uspto_stream_chunk_size):
             if chunk:
                 temp_file.write(chunk)
 
@@ -68,7 +74,7 @@ def stream_uspto_zip(url: str, session: requests.Session) -> Iterator[bytes]:
 
             with z.open(xml_filename[0]) as xml_file:
                 while True:
-                    chunk = xml_file.read(8192)
+                    chunk = xml_file.read(policy.uspto_stream_chunk_size)
                     if not chunk:
                         break
                     yield chunk

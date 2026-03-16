@@ -45,7 +45,7 @@ def uspto_grants(start_date: str = "2024-01-01", end_date: str = "2024-12-31") -
 
     for url in new_files:
         try:
-            stream = stream_uspto_zip(url, session)
+            stream = stream_uspto_zip(url, session, policy)
             # Grants use the <us-patent-grant> root element
             for doc in parse_uspto_stream(stream, tag="us-patent-grant", source_url=url):
                 # Use a deterministic unique file_id logic if needed,
@@ -97,7 +97,7 @@ def uspto_applications(start_date: str = "2024-01-01", end_date: str = "2024-12-
 
     for url in new_files:
         try:
-            stream = stream_uspto_zip(url, session)
+            stream = stream_uspto_zip(url, session, policy)
             # Applications usually use <us-patent-application> as the tag,
             # though earlier might be different. Let's assume us-patent-application.
             for doc in parse_uspto_stream(stream, tag="us-patent-application", source_url=url):
