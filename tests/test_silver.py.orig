@@ -186,7 +186,7 @@ def test_extract_assignees_edge_cases() -> None:
         "us-patent-grant.us-parties.assignees.assignee": [
             None,
             [{"addressbook": "string_value"}],
-            [{"addressbook": {"orgname": None}}],
+            [{"addressbook": {}}],
             pl.Series([], dtype=pl.String),
             "string_instead",
             {"addressbook": {"orgname": "only-dict"}},
