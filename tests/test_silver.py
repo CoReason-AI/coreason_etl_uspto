@@ -12,7 +12,6 @@ import uuid
 from datetime import date
 
 import polars as pl
-
 from coreason_etl_uspto.config import FederatedEnvironmentPolicy
 from coreason_etl_uspto.services.silver import clean_org_name, compute_coreason_id, normalize_silver
 

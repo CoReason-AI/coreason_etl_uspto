@@ -11,7 +11,6 @@
 import pytest
 import requests
 import responses
-
 from coreason_etl_uspto.config import FederatedEnvironmentPolicy
 from coreason_etl_uspto.utils.network import establish_epistemic_network_policy
 
@@ -23,6 +22,7 @@ def test_establish_epistemic_network_policy() -> None:
 
     adapter = session.get_adapter("https://data.uspto.gov")
     from requests.adapters import HTTPAdapter
+
     assert isinstance(adapter, HTTPAdapter)
     assert adapter.max_retries.total == policy.uspto_max_retries  # type: ignore
     assert adapter.max_retries.backoff_factor == 1  # type: ignore
@@ -30,7 +30,7 @@ def test_establish_epistemic_network_policy() -> None:
     assert list(adapter.max_retries.allowed_methods) == ["HEAD", "GET", "OPTIONS"]  # type: ignore
 
 
-@responses.activate
+@responses.activate  # type: ignore
 def test_network_policy_retries() -> None:
     policy = FederatedEnvironmentPolicy(uspto_user_agent="Test-Agent-X", uspto_max_retries=2)
     session = establish_epistemic_network_policy(policy)
@@ -48,7 +48,7 @@ def test_network_policy_retries() -> None:
     assert len(responses.calls) == 3
 
 
-@responses.activate
+@responses.activate  # type: ignore
 def test_network_policy_max_retries_exceeded() -> None:
     policy = FederatedEnvironmentPolicy(uspto_user_agent="Test-Agent-X", uspto_max_retries=1)
     session = establish_epistemic_network_policy(policy)
