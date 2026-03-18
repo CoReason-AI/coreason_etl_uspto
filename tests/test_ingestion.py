@@ -15,9 +15,8 @@ from unittest.mock import MagicMock
 
 import pytest
 import requests
-from requests.exceptions import HTTPError
-
 from coreason_etl_uspto.services.ingestion import FakeRootStream, parse_uspto_stream, stream_uspto_zip
+from requests.exceptions import HTTPError
 
 
 def create_mock_zip(xml_content: bytes, filename: str = "data.xml") -> bytes:

@@ -9,11 +9,10 @@
 # Source Code: https://github.com/CoReason-AI/coreason_etl_uspto
 
 import pytest
+from coreason_etl_uspto.config import FederatedEnvironmentPolicy
 from hypothesis import given
 from hypothesis import strategies as st
 from pydantic import ValidationError
-
-from coreason_etl_uspto.config import FederatedEnvironmentPolicy
 
 
 def test_default_federated_environment_policy() -> None:

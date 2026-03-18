@@ -11,7 +11,6 @@
 import pytest
 import requests
 import responses
-
 from coreason_etl_uspto.config import FederatedEnvironmentPolicy
 from coreason_etl_uspto.utils.network import establish_epistemic_network_policy
 
