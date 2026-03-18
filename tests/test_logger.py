@@ -19,6 +19,8 @@ def test_logger_coverage(tmp_path: Path) -> None:
     # Save the current cwd and change to a temp dir where 'logs' doesn't exist
     old_cwd = os.getcwd()
     os.chdir(tmp_path)
+    # Ensure environment does not mess with log level
+    os.environ["LOG_LEVEL"] = "DEBUG"
     try:
         if "coreason_etl_uspto.utils.logger" in sys.modules:
             del sys.modules["coreason_etl_uspto.utils.logger"]
@@ -26,5 +28,7 @@ def test_logger_coverage(tmp_path: Path) -> None:
 
         assert log_mod.logger is not None
         assert os.path.exists("logs")
+        assert log_mod._policy.log_level == "DEBUG"
     finally:
         os.chdir(old_cwd)
+        del os.environ["LOG_LEVEL"]
