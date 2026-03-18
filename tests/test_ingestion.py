@@ -69,6 +69,168 @@ def test_stream_uspto_zip_no_xml() -> None:
     assert chunks == []
 
 
+def test_stream_uspto_zip_bad_signature() -> None:
+    session = MagicMock(spec=requests.Session)
+    mock_response = MagicMock(spec=requests.Response)
+
+    def iter_content(chunk_size: int = 1) -> Iterator[bytes]:
+        _ = chunk_size
+        yield b"BAD_SIGNATURE_HERE_AND_MORE_BYTES_FOR_SIZE"
+
+    mock_response.iter_content = iter_content
+    mock_response.raise_for_status.return_value = None
+    session.get.return_value = mock_response
+
+    url = "https://example.com/test.zip"
+    stream = stream_uspto_zip(url, session)
+    chunks = list(stream)
+    assert chunks == []
+
+
+def test_stream_uspto_zip_unsupported_compression() -> None:
+    session = MagicMock(spec=requests.Session)
+    mock_response = MagicMock(spec=requests.Response)
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_STORED) as z:
+        z.writestr("test.xml", b"hello")
+    zip_bytes = buffer.getvalue()
+
+    def iter_content(chunk_size: int = 1) -> Iterator[bytes]:
+        _ = chunk_size
+        yield zip_bytes
+
+    mock_response.iter_content = iter_content
+    mock_response.raise_for_status.return_value = None
+    session.get.return_value = mock_response
+
+    url = "https://example.com/test.zip"
+    stream = stream_uspto_zip(url, session)
+    chunks = list(stream)
+    assert chunks == []
+
+
+def test_stream_uspto_zip_unexpected_eof_header() -> None:
+    session = MagicMock(spec=requests.Session)
+    mock_response = MagicMock(spec=requests.Response)
+
+    def iter_content(chunk_size: int = 1) -> Iterator[bytes]:
+        _ = chunk_size
+        yield b"PK\x03\x04"  # Too short for header
+
+    mock_response.iter_content = iter_content
+    mock_response.raise_for_status.return_value = None
+    session.get.return_value = mock_response
+
+    url = "https://example.com/test.zip"
+    stream = stream_uspto_zip(url, session)
+    chunks = list(stream)
+    assert chunks == []
+
+
+def test_stream_uspto_zip_unexpected_eof_filename() -> None:
+    session = MagicMock(spec=requests.Session)
+    mock_response = MagicMock(spec=requests.Response)
+
+    zip_bytes = create_mock_zip(b"some text", "data.xml")
+
+    # Send only the header, cut before filename
+    def iter_content(chunk_size: int = 1) -> Iterator[bytes]:
+        _ = chunk_size
+        yield zip_bytes[:35]
+
+    mock_response.iter_content = iter_content
+    mock_response.raise_for_status.return_value = None
+    session.get.return_value = mock_response
+
+    url = "https://example.com/test.zip"
+    stream = stream_uspto_zip(url, session)
+    chunks = list(stream)
+    assert chunks == []
+
+
+def test_stream_uspto_zip_chunk_yielding() -> None:
+    session = MagicMock(spec=requests.Session)
+    mock_response = MagicMock(spec=requests.Response)
+
+    zip_bytes = create_mock_zip(b"this is some test data here that is quite long", "data.xml")
+
+    def iter_content(chunk_size: int = 1) -> Iterator[bytes]:
+        _ = chunk_size
+        # Yield single byte at a time to force loop continuations
+        for i, b in enumerate(zip_bytes):
+            if i % 10 == 0:
+                yield b""  # empty byte test for header loops
+            yield bytes([b])
+        yield b""  # empty byte test at end
+
+    mock_response.iter_content = iter_content
+    mock_response.raise_for_status.return_value = None
+    session.get.return_value = mock_response
+
+    url = "https://example.com/test.zip"
+    stream = stream_uspto_zip(url, session)
+    chunks = list(stream)
+    assert b"".join(chunks) == b"this is some test data here that is quite long"
+
+
+def test_stream_uspto_zip_with_no_policy() -> None:
+    session = MagicMock(spec=requests.Session)
+    mock_response = MagicMock(spec=requests.Response)
+
+    zip_bytes = create_mock_zip(b"<data></data>", "data.xml")
+
+    def iter_content(chunk_size: int = 1) -> Iterator[bytes]:
+        _ = chunk_size
+        yield zip_bytes
+
+    mock_response.iter_content = iter_content
+    mock_response.raise_for_status.return_value = None
+    session.get.return_value = mock_response
+
+    url = "https://example.com/test.zip"
+    # Should use default policy
+    stream = stream_uspto_zip(url, session, policy=None)
+    chunks = list(stream)
+    assert b"".join(chunks) == b"<data></data>"
+
+
+def test_stream_uspto_zip_flush() -> None:
+    # We want to test the branch `if remaining: yield remaining` inside the flush block.
+    session = MagicMock(spec=requests.Session)
+    mock_response = MagicMock(spec=requests.Response)
+
+    import struct
+    import zlib
+
+    # We create a ZIP file structure manually so we can control where DEFLATE ends
+    # and whether the decompressor has anything to flush.
+    compressor = zlib.compressobj(level=9, wbits=-15)
+    data = b"Some data that might not be fully decompressed without flush."
+    compressed_data = compressor.compress(data)
+    compressed_data += compressor.flush(zlib.Z_SYNC_FLUSH)
+
+    header = struct.pack("<4s5H3I2H", b"PK\x03\x04", 20, 0, 8, 0, 0, 0, len(compressed_data), len(data), 8, 0)
+    filename = b"data.xml"
+
+    zip_bytes = header + filename + compressed_data
+
+    def iter_content(chunk_size: int = 1) -> Iterator[bytes]:
+        _ = chunk_size
+        yield zip_bytes
+
+    mock_response.iter_content = iter_content
+    mock_response.raise_for_status.return_value = None
+    session.get.return_value = mock_response
+
+    url = "https://example.com/test.zip"
+    stream = stream_uspto_zip(url, session)
+    chunks = list(stream)
+    # The output should just be the data, but we hope the Z_SYNC_FLUSH logic forces
+    # a `decompressor.flush()` to yield the last bytes, covering line 133.
+    assert b"".join(chunks) == data
+
+
 def test_stream_uspto_zip_http_error() -> None:
     session = MagicMock(spec=requests.Session)
     mock_response = MagicMock(spec=requests.Response)
