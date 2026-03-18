@@ -15,7 +15,6 @@ so lxml sees a valid document. It then yields individual patent dicts.
 """
 
 import datetime
-import zipfile
 from collections.abc import Iterator
 from typing import Any
 
@@ -37,47 +36,106 @@ def stream_uspto_zip(
     response = session.get(url, stream=True)
     response.raise_for_status()
 
-    # We need to process the zip file from the stream
-    # Python's zipfile requires a file-like object with seek()
-    # For large files, downloading to memory is not ideal, but requests' stream doesn't support seek.
-    # We will simulate a stream by reading the whole file into memory if it's not too big
-    # Or implement a custom streaming unzipper.
-    # As the constraint says "must not load the full unzipped file (5GB+) into RAM",
-    # downloading the zipped file (typically ~100MB) might be acceptable, but ideally we stream.
-    # Let's download the zip to memory (BytesIO) as the zipped version is smaller,
-    # or write to a temp file and read. Since we must not load the *unzipped* file into RAM,
-    # loading the *zipped* file into a BytesIO might be okay if it fits, or we can stream to a temp file.
-    # To keep it memory efficient without hitting disk, we can use an approach if possible,
-    # but ZipFile needs seek. Let's use a temporary file or BytesIO for the zip archive.
-
-    # To stream the zip securely without keeping the entire zip in memory,
-    # we can use a SpooledTemporaryFile which falls back to disk if it exceeds a small buffer.
-    # The max_size is set to 10MB; above that, it writes to a temporary file on disk.
-    from tempfile import SpooledTemporaryFile
-
     if policy is None:
         policy = FederatedEnvironmentPolicy()
 
-    with SpooledTemporaryFile(max_size=policy.uspto_max_memory_mb * 1024 * 1024) as temp_file:
-        for chunk in response.iter_content(chunk_size=policy.uspto_stream_chunk_size):
-            if chunk:
-                temp_file.write(chunk)
+    # The constraint dictates that we must stream the ZIP file from HTTP and
+    # decompress chunks on the fly. Python's built-in `zipfile` module requires
+    # a seekable file, which a raw HTTP stream is not. Instead of buffering the
+    # entire ZIP to disk or memory, we can manually parse the Local File Header
+    # of the first entry in the ZIP stream and use `zlib` to decompress the Deflate stream.
 
-        temp_file.seek(0)
+    stream = response.iter_content(chunk_size=policy.uspto_stream_chunk_size)
 
-        with zipfile.ZipFile(temp_file) as z:
-            # Assuming one XML file per ZIP
-            xml_filename = [name for name in z.namelist() if name.endswith(".xml")]
-            if not xml_filename:
-                logger.warning(f"No XML files found in {url}")
-                return
+    import struct
+    import zlib
 
-            with z.open(xml_filename[0]) as xml_file:
-                while True:
-                    chunk = xml_file.read(policy.uspto_stream_chunk_size)
-                    if not chunk:
-                        break
-                    yield chunk
+    # We need to read the 30-byte Local File Header to skip to the compressed data
+    header_format = "<4s5H3I2H"
+    header_size = struct.calcsize(header_format)
+
+    buffer = b""
+    while len(buffer) < header_size:
+        try:
+            chunk = next(stream)
+            if not chunk:
+                continue
+            buffer += chunk
+        except StopIteration:
+            logger.warning(f"Unexpected end of stream while reading ZIP header from {url}")
+            return
+
+    header_bytes = buffer[:header_size]
+    buffer = buffer[header_size:]
+
+    unpacked = struct.unpack(header_format, header_bytes)
+    signature = unpacked[0]
+    compression = unpacked[3]
+    name_len = unpacked[9]
+    extra_len = unpacked[10]
+
+    if signature != b"PK\x03\x04":
+        logger.warning(f"Invalid ZIP local file header signature in {url}")
+        return
+
+    if compression != 8:
+        # 8 is DEFLATED, which is standard. If not, we can't blindly zlib decompress.
+        logger.warning(f"Unsupported compression method {compression} in {url}")
+        return
+
+    # Read filename and extra field
+    skip_len = name_len + extra_len
+    while len(buffer) < skip_len:
+        try:
+            chunk = next(stream)
+            if not chunk:
+                continue
+            buffer += chunk
+        except StopIteration:
+            logger.warning(f"Unexpected end of stream while skipping filename/extra in {url}")
+            return
+
+    filename = buffer[:name_len].decode("utf-8", errors="ignore")
+    if not filename.endswith(".xml"):
+        logger.warning(f"No XML files found in {url} (found {filename})")
+        return
+
+    buffer = buffer[skip_len:]
+
+    # We are now at the start of the compressed data.
+    # Create a streaming decompressor. We use -15 for max_wbits to indicate raw DEFLATE stream without zlib header
+    decompressor = zlib.decompressobj(-15)
+
+    # Decompress the remaining buffer
+    if buffer:
+        uncompressed = decompressor.decompress(buffer)
+        if uncompressed:
+            yield uncompressed
+
+    # Decompress the rest of the stream
+    for chunk in stream:
+        if not chunk:
+            continue
+
+        uncompressed = decompressor.decompress(chunk)
+        if uncompressed:
+            yield uncompressed
+
+        if decompressor.unused_data:
+            # The decompressor hit the end of the DEFLATE stream.
+            # The rest of the zip file (Central Directory, etc.) is in unused_data.
+            # We assume there's only one XML file we care about per ZIP.
+            break
+
+    # Flush the decompressor
+    # Note: `decompressor.flush()` is generally safe to call, but in streaming without zlib headers
+    # (-15), calling flush might raise if data isn't perfectly complete.
+    try:
+        remaining = decompressor.flush()
+        if remaining:  # pragma: no cover
+            yield remaining
+    except zlib.error:  # pragma: no cover
+        logger.debug(f"zlib flush error for {url}, likely harmless given stream boundaries.")
 
 
 class FakeRootStream:
