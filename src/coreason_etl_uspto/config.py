@@ -85,4 +85,9 @@ class FederatedEnvironmentPolicy(BaseSettings):
         description="Maximum number of HTTP retries for resilient requests.",
     )
 
+    uspto_max_stream_size_mb: int = Field(
+        default=5120,
+        description="Maximum expected size for streaming ZIP files in MB.",
+    )
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")

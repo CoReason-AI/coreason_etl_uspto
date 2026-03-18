@@ -35,6 +35,7 @@ def test_default_federated_environment_policy() -> None:
     assert policy.uspto_max_memory_mb == 10
     assert policy.uspto_http_timeout == 60
     assert policy.uspto_max_retries == 3
+    assert policy.uspto_max_stream_size_mb == 5120
 
 
 @given(
@@ -57,6 +58,7 @@ def test_default_federated_environment_policy() -> None:
     uspto_max_memory_mb=st.integers(min_value=1),
     uspto_http_timeout=st.integers(min_value=1),
     uspto_max_retries=st.integers(min_value=0),
+    uspto_max_stream_size_mb=st.integers(min_value=1),
 )
 def test_federated_environment_policy_valid(
     app_env: str,
@@ -78,6 +80,7 @@ def test_federated_environment_policy_valid(
     uspto_max_memory_mb: int,
     uspto_http_timeout: int,
     uspto_max_retries: int,
+    uspto_max_stream_size_mb: int,
 ) -> None:
     policy = FederatedEnvironmentPolicy(
         app_env=app_env,
@@ -99,6 +102,7 @@ def test_federated_environment_policy_valid(
         uspto_max_memory_mb=uspto_max_memory_mb,
         uspto_http_timeout=uspto_http_timeout,
         uspto_max_retries=uspto_max_retries,
+        uspto_max_stream_size_mb=uspto_max_stream_size_mb,
     )
     assert policy.app_env == app_env
     assert policy.debug is debug
@@ -119,6 +123,7 @@ def test_federated_environment_policy_valid(
     assert policy.uspto_max_memory_mb == uspto_max_memory_mb
     assert policy.uspto_http_timeout == uspto_http_timeout
     assert policy.uspto_max_retries == uspto_max_retries
+    assert policy.uspto_max_stream_size_mb == uspto_max_stream_size_mb
 
 
 def test_invalid_app_env() -> None:
