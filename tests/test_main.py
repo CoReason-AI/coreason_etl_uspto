@@ -75,18 +75,21 @@ def test_run_pipeline_outer_exception(mock_dlt_pipeline: MagicMock) -> None:
         run_pipeline()
 
 
+@patch("coreason_etl_uspto.main.pl.read_database")
 @patch("coreason_etl_uspto.main.normalize_silver")
-def test_refine_bronze_table_success(mock_normalize_silver: MagicMock) -> None:
-    # Setup mock cursor and data
+def test_refine_bronze_table_success(mock_normalize_silver: MagicMock, mock_read_database: MagicMock) -> None:
     mock_pipeline = MagicMock()
     mock_client = MagicMock()
-    mock_cursor = MagicMock()
     mock_pipeline.sql_client.return_value = mock_client
-    mock_client.execute_query.return_value.__enter__.return_value = mock_cursor
 
-    mock_cursor.description = [("id",), ("name",)]
-    mock_cursor.fetchall.return_value = [(1, "A"), (2, "B")]
+    mock_conn = MagicMock()
+    mock_client.native_connection = mock_conn
 
+    # Setup the dataframe returned by read_database
+    mock_df_bronze = pl.DataFrame({"id": [1, 2], "name": ["A", "B"]})
+    mock_read_database.return_value = mock_df_bronze
+
+    # Setup the silver df returned by normalize_silver
     mock_df_silver = pl.DataFrame({"clean_id": [1, 2], "name": ["A", "B"]})
     mock_normalize_silver.return_value = mock_df_silver
 
@@ -95,32 +98,28 @@ def test_refine_bronze_table_success(mock_normalize_silver: MagicMock) -> None:
     result = _refine_bronze_table(mock_pipeline, policy, "uspto_grants")
 
     assert result is mock_df_silver
-    mock_client.execute_query.assert_called_once()
-    mock_normalize_silver.assert_called_once()
-
-    # Extract the dataframe passed to normalize_silver and verify it
-    called_df = mock_normalize_silver.call_args[0][0]
-    assert called_df.shape == (2, 2)
-    assert called_df.columns == ["id", "name"]
+    mock_read_database.assert_called_once()
+    assert mock_read_database.call_args[1]["connection"] == mock_conn
+    mock_normalize_silver.assert_called_once_with(mock_df_bronze)
 
 
+@patch("coreason_etl_uspto.main.pl.read_database")
 @patch("coreason_etl_uspto.main.normalize_silver")
-def test_refine_bronze_table_empty(mock_normalize_silver: MagicMock) -> None:
-    # Setup mock cursor with no rows
+def test_refine_bronze_table_empty(mock_normalize_silver: MagicMock, mock_read_database: MagicMock) -> None:
     mock_pipeline = MagicMock()
     mock_client = MagicMock()
-    mock_cursor = MagicMock()
     mock_pipeline.sql_client.return_value = mock_client
-    mock_client.execute_query.return_value.__enter__.return_value = mock_cursor
 
-    mock_cursor.description = [("id",), ("name",)]
-    mock_cursor.fetchall.return_value = []
+    # Setup an empty dataframe
+    mock_df_bronze = pl.DataFrame({"id": [], "name": []}, schema={"id": pl.Int64, "name": pl.String})
+    mock_read_database.return_value = mock_df_bronze
 
     policy = FederatedEnvironmentPolicy()
 
     result = _refine_bronze_table(mock_pipeline, policy, "uspto_grants")
 
     assert result is None
+    mock_read_database.assert_called_once()
     mock_normalize_silver.assert_not_called()
 
 

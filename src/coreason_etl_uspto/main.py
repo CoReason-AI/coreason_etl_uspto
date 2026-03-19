@@ -83,21 +83,20 @@ def _refine_bronze_table(
     AGENT INSTRUCTION: Helper function to fetch a table and refine it.
     """
     try:
-        # We fetch all rows manually into dicts and build polars
+        # Use standard framework integration: read DB-API connection natively into Polars
         client = pipeline.sql_client()
-        with client.execute_query(f'SELECT * FROM "{policy.dlt_dataset_name}"."{table_name}"') as cursor:  # noqa: S608
-            # We can use fetchall
-            columns = [desc[0] for desc in cursor.description]
-            rows = cursor.fetchall()
+        with client:
+            query = f'SELECT * FROM "{policy.dlt_dataset_name}"."{table_name}"'  # noqa: S608
+            conn = client.native_connection
 
-            if not rows:
+            # Use adbc engine if connectorx/adbc is installed, otherwise it falls back
+            # However, for a standard DBAPI2 connection object from psycopg2 (which dlt uses),
+            # Polars can read it directly.
+            df_bronze = pl.read_database(query, connection=conn)
+
+            if df_bronze.is_empty():
                 logger.info(f"Table {table_name} is empty.")
                 return None
-
-            # Use a dict construction for polars
-            data = [dict(zip(columns, row, strict=False)) for row in rows]
-
-            df_bronze = pl.DataFrame(data)
 
             logger.info(f"Loaded {len(df_bronze)} records from Bronze {table_name}.")
 
