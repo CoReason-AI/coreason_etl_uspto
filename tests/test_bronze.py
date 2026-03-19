@@ -49,7 +49,9 @@ def test_uspto_grants_resource(
     items = list(generator)
 
     assert len(items) == 1
-    assert items[0]["us-patent-grant"]["id"] == "1"
+    # Check that dlt.mark.with_table_name has been applied
+    assert items[0].__class__.__name__ == "with_table_name"
+    assert items[0].table_name == "coreason_etl_uspto_bronze_grants"
 
 
 @patch("coreason_etl_uspto.services.bronze.dlt.current.resource_state")
@@ -80,6 +82,8 @@ def test_uspto_applications_resource(
 
     # test2.zip is new, parse yields error
     assert len(items) == 1
+    assert items[0].__class__.__name__ == "with_table_name"
+    assert items[0].table_name == "coreason_etl_uspto_bronze_applications_error"
 
 
 @patch("coreason_etl_uspto.services.bronze.dlt.current.resource_state")
@@ -99,6 +103,8 @@ def test_uspto_grants_resource_exception(
     items = list(generator)
 
     assert len(items) == 1
+    assert items[0].__class__.__name__ == "with_table_name"
+    assert items[0].table_name == "coreason_etl_uspto_bronze_grants_error"
 
 
 @patch("coreason_etl_uspto.services.bronze.dlt.current.resource_state")
@@ -128,6 +134,8 @@ def test_uspto_grants_resource_error_record(
     items = list(generator)
 
     assert len(items) == 1
+    assert items[0].__class__.__name__ == "with_table_name"
+    assert items[0].table_name == "coreason_etl_uspto_bronze_grants_error"
 
 
 @patch("coreason_etl_uspto.services.bronze.dlt.current.resource_state")
@@ -147,6 +155,8 @@ def test_uspto_applications_resource_exception(
     items = list(generator)
 
     assert len(items) == 1
+    assert items[0].__class__.__name__ == "with_table_name"
+    assert items[0].table_name == "coreason_etl_uspto_bronze_applications_error"
 
 
 @patch("coreason_etl_uspto.services.bronze.dlt.current.resource_state")
@@ -176,4 +186,5 @@ def test_uspto_applications_resource_success(
     items = list(generator)
 
     assert len(items) == 1
-    assert items[0]["us-patent-application"]["id"] == "1"
+    assert items[0].__class__.__name__ == "with_table_name"
+    assert items[0].table_name == "coreason_etl_uspto_bronze_applications"

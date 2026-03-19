@@ -38,8 +38,10 @@ def test_run_pipeline_success(
     mock_uspto_bulk.assert_called_once_with(start_date="2024-01-01", end_date="2024-01-02")
     mock_pipeline_instance.run.assert_called_once_with(mock_source)
     assert mock_refine_bronze_table.call_count == 2
-    mock_refine_bronze_table.assert_any_call(mock_pipeline_instance, ANY, "uspto_grants")
-    mock_refine_bronze_table.assert_any_call(mock_pipeline_instance, ANY, "uspto_applications")
+    mock_refine_bronze_table.assert_any_call(mock_pipeline_instance, ANY, "coreason_etl_uspto_bronze_grants", "grants")
+    mock_refine_bronze_table.assert_any_call(
+        mock_pipeline_instance, ANY, "coreason_etl_uspto_bronze_applications", "applications"
+    )
 
 
 @patch("coreason_etl_uspto.main.dlt.pipeline")
@@ -90,17 +92,23 @@ def test_refine_bronze_table_success(mock_normalize_silver: MagicMock, mock_read
     mock_read_database.return_value = mock_df_bronze
 
     # Setup the silver df returned by normalize_silver
-    mock_df_silver = pl.DataFrame({"clean_id": [1, 2], "name": ["A", "B"]})
+    mock_df_silver = MagicMock()
     mock_normalize_silver.return_value = mock_df_silver
 
     policy = FederatedEnvironmentPolicy()
 
-    result = _refine_bronze_table(mock_pipeline, policy, "uspto_grants")
+    result = _refine_bronze_table(mock_pipeline, policy, "coreason_etl_uspto_bronze_grants", "grants")
 
     assert result is mock_df_silver
     mock_read_database.assert_called_once()
     assert mock_read_database.call_args[1]["connection"] == mock_conn
     mock_normalize_silver.assert_called_once_with(mock_df_bronze)
+
+    # Assert silver write output
+    mock_df_silver.write_database.assert_called_once()
+    write_args = mock_df_silver.write_database.call_args[1]
+    assert write_args["table_name"] == f'"{policy.silver_schema}"."coreason_etl_uspto_silver_grants"'
+    assert "postgresql://" in write_args["connection"]
 
 
 @patch("coreason_etl_uspto.main.pl.read_database")
@@ -116,7 +124,7 @@ def test_refine_bronze_table_empty(mock_normalize_silver: MagicMock, mock_read_d
 
     policy = FederatedEnvironmentPolicy()
 
-    result = _refine_bronze_table(mock_pipeline, policy, "uspto_grants")
+    result = _refine_bronze_table(mock_pipeline, policy, "coreason_etl_uspto_bronze_grants", "grants")
 
     assert result is None
     mock_read_database.assert_called_once()
@@ -130,7 +138,7 @@ def test_refine_bronze_table_exception() -> None:
     policy = FederatedEnvironmentPolicy()
 
     with pytest.raises(Exception, match="DB Connection Error"):
-        _refine_bronze_table(mock_pipeline, policy, "uspto_grants")
+        _refine_bronze_table(mock_pipeline, policy, "coreason_etl_uspto_bronze_grants", "grants")
 
 
 @patch("coreason_etl_uspto.main.run_pipeline")

@@ -56,7 +56,7 @@ def uspto_grants(start_date: str = "2024-01-01", end_date: str = "2024-12-31") -
 
                 # Wait, if doc is a failure record, handle it differently
                 if doc.get("_error"):
-                    yield dlt.mark.with_table_name(doc, "uspto_grants_error")
+                    yield dlt.mark.with_table_name(doc, "coreason_etl_uspto_bronze_grants_error")
                     continue
 
                 # Extract some ID for primary key - depends on schema, but we can generate one or just
@@ -64,7 +64,7 @@ def uspto_grants(start_date: str = "2024-01-01", end_date: str = "2024-12-31") -
                 # Actually, doc doesn't strictly have a file_id at top level.
                 # We can inject `file_id` = doc['ingestion_meta']['source_file'] + index
 
-                yield doc
+                yield dlt.mark.with_table_name(doc, "coreason_etl_uspto_bronze_grants")
 
             processed_files.append(url)
 
@@ -73,7 +73,7 @@ def uspto_grants(start_date: str = "2024-01-01", end_date: str = "2024-12-31") -
             # If the whole file fails (e.g. streaming error), we don't mark as processed
             yield dlt.mark.with_table_name(
                 {"_error": True, "error_message": str(e), "source_url": url, "context": "file_level"},
-                "uspto_grants_error",
+                "coreason_etl_uspto_bronze_grants_error",
             )
 
 
@@ -102,10 +102,10 @@ def uspto_applications(start_date: str = "2024-01-01", end_date: str = "2024-12-
             # though earlier might be different. Let's assume us-patent-application.
             for doc in parse_uspto_stream(stream, tag="us-patent-application", source_url=url):
                 if doc.get("_error"):
-                    yield dlt.mark.with_table_name(doc, "uspto_applications_error")
+                    yield dlt.mark.with_table_name(doc, "coreason_etl_uspto_bronze_applications_error")
                     continue
 
-                yield doc
+                yield dlt.mark.with_table_name(doc, "coreason_etl_uspto_bronze_applications")
 
             processed_files.append(url)
 
@@ -113,7 +113,7 @@ def uspto_applications(start_date: str = "2024-01-01", end_date: str = "2024-12-
             logger.error(f"Failed to process file {url}: {e}")
             yield dlt.mark.with_table_name(
                 {"_error": True, "error_message": str(e), "source_url": url, "context": "file_level"},
-                "uspto_applications_error",
+                "coreason_etl_uspto_bronze_applications_error",
             )
 
 

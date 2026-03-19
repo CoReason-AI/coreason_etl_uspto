@@ -62,9 +62,10 @@ def run_pipeline(start_date: str = "2024-01-01", end_date: str = "2024-12-31") -
         client = pipeline.sql_client()
         with client:
             # We can run query on the loaded tables directly using the client
-            for table_name in ["uspto_grants", "uspto_applications"]:
+            for base_name in ["grants", "applications"]:
+                table_name = f"coreason_etl_uspto_bronze_{base_name}"
                 try:
-                    _refine_bronze_table(pipeline, policy, table_name)
+                    _refine_bronze_table(pipeline, policy, table_name, base_name)
                 except Exception as e:
                     logger.warning(f"Failed to refine table {table_name}: {e}")
 
@@ -77,7 +78,7 @@ def run_pipeline(start_date: str = "2024-01-01", end_date: str = "2024-12-31") -
 
 
 def _refine_bronze_table(
-    pipeline: dlt.Pipeline, policy: FederatedEnvironmentPolicy, table_name: str
+    pipeline: dlt.Pipeline, policy: FederatedEnvironmentPolicy, table_name: str, base_name: str
 ) -> pl.DataFrame | None:
     """
     AGENT INSTRUCTION: Helper function to fetch a table and refine it.
@@ -102,6 +103,25 @@ def _refine_bronze_table(
 
             # Apply silver normalization
             df_silver = normalize_silver(df_bronze)
+
+            silver_table_name = f"coreason_etl_uspto_silver_{base_name}"
+            # Postgres connection string for polars write_database
+            uri = (
+                f"postgresql://{policy.pguser}:{policy.pgpassword}@{policy.pghost}:{policy.pgport}/{policy.pgdatabase}"
+            )
+
+            # Create schema if it does not exist
+            with client.execute_query(f'CREATE SCHEMA IF NOT EXISTS "{policy.silver_schema}"'):
+                pass
+
+            # Write back to PostgreSQL into the silver schema
+            logger.info(f"Writing {len(df_silver)} records to {policy.silver_schema}.{silver_table_name}")
+            df_silver.write_database(
+                table_name=f'"{policy.silver_schema}"."{silver_table_name}"',
+                connection=uri,
+                if_table_exists="append",
+                engine="adbc",
+            )
 
             logger.info(f"Refinement of {table_name} into Silver Layer complete.")
             return df_silver
