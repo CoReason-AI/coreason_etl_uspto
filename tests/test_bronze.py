@@ -22,6 +22,7 @@ def test_uspto_bulk_source() -> None:
     assert "uspto_applications" in source.resources
 
 
+@patch("coreason_etl_uspto.services.bronze.dlt.mark.with_table_name")
 @patch("coreason_etl_uspto.services.bronze.dlt.current.resource_state")
 @patch("coreason_etl_uspto.services.bronze.fetch_zip_links")
 @patch("coreason_etl_uspto.services.bronze.stream_uspto_zip")
@@ -33,6 +34,7 @@ def test_uspto_grants_resource(
     mock_stream: MagicMock,
     mock_fetch: MagicMock,
     mock_state: MagicMock,
+    mock_with_table_name: MagicMock,
 ) -> None:
     _ = _mock_network
     mock_state.return_value = {"processed_files": []}
@@ -44,14 +46,16 @@ def test_uspto_grants_resource(
     mock_stream.return_value = fake_stream()
 
     mock_parse.return_value = iter([{"us-patent-grant": {"id": "1"}, "_error": False}])
+    mock_with_table_name.side_effect = lambda doc, name: {"doc": doc, "table_name": name}
 
     generator = uspto_grants("2024-01-01", "2024-01-07")
     items = list(generator)
 
     assert len(items) == 1
-    assert items[0]["us-patent-grant"]["id"] == "1"
+    assert items[0]["table_name"] == "coreason_etl_uspto_bronze_grants"
 
 
+@patch("coreason_etl_uspto.services.bronze.dlt.mark.with_table_name")
 @patch("coreason_etl_uspto.services.bronze.dlt.current.resource_state")
 @patch("coreason_etl_uspto.services.bronze.fetch_zip_links")
 @patch("coreason_etl_uspto.services.bronze.stream_uspto_zip")
@@ -63,6 +67,7 @@ def test_uspto_applications_resource(
     mock_stream: MagicMock,
     mock_fetch: MagicMock,
     mock_state: MagicMock,
+    mock_with_table_name: MagicMock,
 ) -> None:
     _ = _mock_network
     mock_state.return_value = {"processed_files": ["https://example.com/test1.zip"]}
@@ -74,33 +79,43 @@ def test_uspto_applications_resource(
     mock_stream.return_value = fake_stream()
 
     mock_parse.return_value = iter([{"_error": True, "error_message": "test error"}])
+    mock_with_table_name.side_effect = lambda doc, name: {"doc": doc, "table_name": name}
 
     generator = uspto_applications("2024-01-01", "2024-01-07")
     items = list(generator)
 
     # test2.zip is new, parse yields error
     assert len(items) == 1
+    assert items[0]["table_name"] == "coreason_etl_uspto_bronze_applications_error"
 
 
+@patch("coreason_etl_uspto.services.bronze.dlt.mark.with_table_name")
 @patch("coreason_etl_uspto.services.bronze.dlt.current.resource_state")
 @patch("coreason_etl_uspto.services.bronze.fetch_zip_links")
 @patch("coreason_etl_uspto.services.bronze.stream_uspto_zip")
 @patch("coreason_etl_uspto.services.bronze.establish_epistemic_network_policy")
 def test_uspto_grants_resource_exception(
-    _mock_network: MagicMock, mock_stream: MagicMock, mock_fetch: MagicMock, mock_state: MagicMock
+    _mock_network: MagicMock,
+    mock_stream: MagicMock,
+    mock_fetch: MagicMock,
+    mock_state: MagicMock,
+    mock_with_table_name: MagicMock,
 ) -> None:
     _ = _mock_network
     mock_state.return_value = {"processed_files": []}
     mock_fetch.return_value = ["https://example.com/test1.zip"]
 
     mock_stream.side_effect = Exception("Streaming failed")
+    mock_with_table_name.side_effect = lambda doc, name: {"doc": doc, "table_name": name}
 
     generator = uspto_grants("2024-01-01", "2024-01-07")
     items = list(generator)
 
     assert len(items) == 1
+    assert items[0]["table_name"] == "coreason_etl_uspto_bronze_grants_error"
 
 
+@patch("coreason_etl_uspto.services.bronze.dlt.mark.with_table_name")
 @patch("coreason_etl_uspto.services.bronze.dlt.current.resource_state")
 @patch("coreason_etl_uspto.services.bronze.fetch_zip_links")
 @patch("coreason_etl_uspto.services.bronze.stream_uspto_zip")
@@ -112,6 +127,7 @@ def test_uspto_grants_resource_error_record(
     mock_stream: MagicMock,
     mock_fetch: MagicMock,
     mock_state: MagicMock,
+    mock_with_table_name: MagicMock,
 ) -> None:
     _ = _mock_network
     mock_state.return_value = {"processed_files": []}
@@ -123,32 +139,42 @@ def test_uspto_grants_resource_error_record(
     mock_stream.return_value = fake_stream()
 
     mock_parse.return_value = iter([{"_error": True, "error_message": "test error"}])
+    mock_with_table_name.side_effect = lambda doc, name: {"doc": doc, "table_name": name}
 
     generator = uspto_grants("2024-01-01", "2024-01-07")
     items = list(generator)
 
     assert len(items) == 1
+    assert items[0]["table_name"] == "coreason_etl_uspto_bronze_grants_error"
 
 
+@patch("coreason_etl_uspto.services.bronze.dlt.mark.with_table_name")
 @patch("coreason_etl_uspto.services.bronze.dlt.current.resource_state")
 @patch("coreason_etl_uspto.services.bronze.fetch_zip_links")
 @patch("coreason_etl_uspto.services.bronze.stream_uspto_zip")
 @patch("coreason_etl_uspto.services.bronze.establish_epistemic_network_policy")
 def test_uspto_applications_resource_exception(
-    _mock_network: MagicMock, mock_stream: MagicMock, mock_fetch: MagicMock, mock_state: MagicMock
+    _mock_network: MagicMock,
+    mock_stream: MagicMock,
+    mock_fetch: MagicMock,
+    mock_state: MagicMock,
+    mock_with_table_name: MagicMock,
 ) -> None:
     _ = _mock_network
     mock_state.return_value = {"processed_files": []}
     mock_fetch.return_value = ["https://example.com/test1.zip"]
 
     mock_stream.side_effect = Exception("Streaming failed")
+    mock_with_table_name.side_effect = lambda doc, name: {"doc": doc, "table_name": name}
 
     generator = uspto_applications("2024-01-01", "2024-01-07")
     items = list(generator)
 
     assert len(items) == 1
+    assert items[0]["table_name"] == "coreason_etl_uspto_bronze_applications_error"
 
 
+@patch("coreason_etl_uspto.services.bronze.dlt.mark.with_table_name")
 @patch("coreason_etl_uspto.services.bronze.dlt.current.resource_state")
 @patch("coreason_etl_uspto.services.bronze.fetch_zip_links")
 @patch("coreason_etl_uspto.services.bronze.stream_uspto_zip")
@@ -160,6 +186,7 @@ def test_uspto_applications_resource_success(
     mock_stream: MagicMock,
     mock_fetch: MagicMock,
     mock_state: MagicMock,
+    mock_with_table_name: MagicMock,
 ) -> None:
     _ = _mock_network
     mock_state.return_value = {"processed_files": []}
@@ -171,9 +198,10 @@ def test_uspto_applications_resource_success(
     mock_stream.return_value = fake_stream()
 
     mock_parse.return_value = iter([{"us-patent-application": {"id": "1"}, "_error": False}])
+    mock_with_table_name.side_effect = lambda doc, name: {"doc": doc, "table_name": name}
 
     generator = uspto_applications("2024-01-01", "2024-01-07")
     items = list(generator)
 
     assert len(items) == 1
-    assert items[0]["us-patent-application"]["id"] == "1"
+    assert items[0]["table_name"] == "coreason_etl_uspto_bronze_applications"
