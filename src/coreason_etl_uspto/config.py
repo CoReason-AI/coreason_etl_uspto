@@ -50,8 +50,18 @@ class FederatedEnvironmentPolicy(BaseSettings):
     )
 
     dlt_dataset_name: str = Field(
-        default="uspto_bronze",
-        description="The dataset name for the Bronze layer.",
+        default="bronze",
+        description="The dataset name (schema) for the Bronze layer.",
+    )
+
+    silver_schema: str = Field(
+        default="silver",
+        description="The dataset name (schema) for the Silver layer.",
+    )
+
+    gold_schema: str = Field(
+        default="gold",
+        description="The dataset name (schema) for the Gold layer.",
     )
 
     pghost: str = Field(default="localhost", description="PostgreSQL host.")
