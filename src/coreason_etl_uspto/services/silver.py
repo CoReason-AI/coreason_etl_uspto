@@ -120,11 +120,19 @@ def normalize_silver(df: pl.DataFrame) -> pl.DataFrame:
     )
 
     # 4. Abstract Normalization
+    # abstract.p might be a string (if single paragraph) or a list of strings (if multiple)
+    # If it's a list, we need to join it.
+    abstract_p_dtype = df.schema.get("abstract.p")
+    if isinstance(abstract_p_dtype, pl.List):
+        abstract_p_expr = pl.col("abstract.p").list.join(" ")
+    else:
+        abstract_p_expr = pl.col("abstract.p").cast(pl.String)
+
     abstract = pl.coalesce(
         [
-            pl.col("abstract.p"),
-            pl.col("PATDOC.SDOAB.BTEXT.PARA"),
-            pl.col("PATDOC.ABST"),
+            abstract_p_expr,
+            pl.col("PATDOC.SDOAB.BTEXT.PARA").cast(pl.String),
+            pl.col("PATDOC.ABST").cast(pl.String),
         ]
     ).alias("abstract")
 
