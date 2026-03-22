@@ -110,8 +110,10 @@ def _refine_bronze_table(
                 f"postgresql://{policy.pguser}:{policy.pgpassword}@{policy.pghost}:{policy.pgport}/{policy.pgdatabase}"
             )
 
-            # Create schema if it does not exist
+            # Create schemas if they do not exist
             with client.execute_query(f'CREATE SCHEMA IF NOT EXISTS "{policy.silver_schema}"'):
+                pass
+            with client.execute_query(f'CREATE SCHEMA IF NOT EXISTS "{policy.gold_schema}"'):
                 pass
 
             # Write back to PostgreSQL into the silver schema
@@ -122,8 +124,19 @@ def _refine_bronze_table(
                 if_table_exists="append",
                 engine="adbc",
             )
-
             logger.info(f"Refinement of {table_name} into Silver Layer complete.")
+
+            # Create and write to the Gold schema table following naming conventions
+            gold_table_name = f"coreason_etl_uspto_gold_{base_name}"
+            logger.info(f"Writing {len(df_silver)} records to {policy.gold_schema}.{gold_table_name}")
+            df_silver.write_database(
+                table_name=f'"{policy.gold_schema}"."{gold_table_name}"',
+                connection=uri,
+                if_table_exists="append",
+                engine="adbc",
+            )
+            logger.info(f"Refinement of {table_name} into Gold Layer complete.")
+
             return df_silver
 
     except Exception as e:
