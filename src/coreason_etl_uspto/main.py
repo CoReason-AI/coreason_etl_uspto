@@ -106,9 +106,7 @@ def _refine_bronze_table(
 
             silver_table_name = f"coreason_etl_uspto_silver_{base_name}"
             # Postgres connection string for polars write_database
-            uri = (
-                f"postgresql://{policy.pguser}:{policy.pgpassword}@{policy.pghost}:{policy.pgport}/{policy.pgdatabase}"
-            )
+            uri = policy.get_postgres_uri
 
             # Create schemas if they do not exist
             with client.execute_query(f'CREATE SCHEMA IF NOT EXISTS "{policy.silver_schema}"'):
