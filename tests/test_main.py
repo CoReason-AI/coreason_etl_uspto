@@ -104,11 +104,14 @@ def test_refine_bronze_table_success(mock_normalize_silver: MagicMock, mock_read
     assert mock_read_database.call_args[1]["connection"] == mock_conn
     mock_normalize_silver.assert_called_once_with(mock_df_bronze)
 
-    # Assert silver write output
-    mock_df_silver.write_database.assert_called_once()
-    write_args = mock_df_silver.write_database.call_args[1]
-    assert write_args["table_name"] == f'"{policy.silver_schema}"."coreason_etl_uspto_silver_grants"'
-    assert "postgresql://" in write_args["connection"]
+    # Assert silver write output and gold write output
+    assert mock_df_silver.write_database.call_count == 2
+    silver_write_args = mock_df_silver.write_database.call_args_list[0][1]
+    gold_write_args = mock_df_silver.write_database.call_args_list[1][1]
+    assert silver_write_args["table_name"] == f'"{policy.silver_schema}"."coreason_etl_uspto_silver_grants"'
+    assert "postgresql://" in silver_write_args["connection"]
+    assert gold_write_args["table_name"] == f'"{policy.gold_schema}"."coreason_etl_uspto_gold_grants"'
+    assert "postgresql://" in gold_write_args["connection"]
 
 
 @patch("coreason_etl_uspto.main.pl.read_database")

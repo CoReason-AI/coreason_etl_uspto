@@ -10,6 +10,7 @@
 
 import uuid
 from datetime import date
+from typing import Any
 
 import polars as pl
 from coreason_etl_uspto.config import FederatedEnvironmentPolicy
@@ -51,7 +52,7 @@ def test_compute_coreason_id_empty_string() -> None:
 
 
 def test_normalize_silver_red_book() -> None:
-    data = {
+    data: dict[str, list[Any]] = {
         "us-patent-grant.us-bibliographic-data-grant.publication-reference.document-id.doc-number": ["01234567"],
         "us-patent-grant.us-bibliographic-data-grant.publication-reference.document-id.kind": ["B2"],
         "us-patent-grant.us-bibliographic-data-grant.publication-reference.document-id.date": ["20240101"],
@@ -93,7 +94,7 @@ def test_normalize_silver_red_book() -> None:
 
 
 def test_normalize_silver_green_book() -> None:
-    data = {
+    data: dict[str, list[Any]] = {
         "PATDOC.WKU": ["054321B1"],
         "PATDOC.SDOBI.B100.B110": ["00012345"],
         "PATDOC.SDOBI.B100.B140": ["20051231"],
@@ -142,7 +143,7 @@ def test_normalize_silver_missing_columns() -> None:
 
 def test_extract_inventors_edge_cases() -> None:
     # Test missing lists, strings, and missing attributes
-    data = {
+    data: dict[str, list[Any]] = {
         "us-patent-grant.us-parties.inventors.inventor": [
             None,
             [{"addressbook": {"string": "instead"}}],
@@ -182,7 +183,7 @@ def test_extract_inventors_edge_cases() -> None:
 
 def test_extract_assignees_edge_cases() -> None:
     # Test missing lists, strings, and missing attributes
-    data = {
+    data: dict[str, list[Any]] = {
         "us-patent-grant.us-parties.assignees.assignee": [
             None,
             [{"addressbook": "string_value"}],
@@ -214,3 +215,108 @@ def test_extract_assignees_edge_cases() -> None:
 
     if assignees[2] is not None and len(assignees[2]) > 0:
         assert "org_name" in assignees[2][0]
+
+
+def test_normalize_silver_complex_scenarios() -> None:
+    data: dict[str, list[Any]] = {
+        "us-patent-grant.us-bibliographic-data-grant.publication-reference.document-id.doc-number": [
+            "01234567",
+            None,
+            "87654321",
+        ],
+        "PATDOC.SDOBI.B100.B110": [None, "00098765", None],
+        "us-patent-grant.us-bibliographic-data-grant.publication-reference.document-id.kind": ["B2", None, "A1"],
+        "PATDOC.WKU": [None, "098765B1", None],
+        "us-patent-grant.us-bibliographic-data-grant.publication-reference.document-id.date": [
+            "20240101",
+            None,
+            "bad_date",
+        ],
+        "PATDOC.SDOBI.B100.B140": [None, "20051231", None],
+        "us-patent-grant.us-bibliographic-data-grant.invention-title.#text": ["  AI SYSTEM  ", None, "ANOTHER AI"],
+        "PATDOC.SDOBI.B500.B540.STEXT.PDAT": [None, "  OLD SYSTEM  ", None],
+        "abstract.p": [["This is", " a multi-paragraph", " abstract."], None, None],
+        "PATDOC.SDOAB.BTEXT.PARA": [None, "This is an old system.", None],
+        "us-patent-grant.us-parties.inventors.inventor": [
+            [
+                {
+                    "addressbook": {
+                        "first-name": "JOHN",
+                        "last-name": "doe",
+                        "address": {"city": "new york", "state": "ny"},
+                    }
+                },
+                {
+                    "addressbook": {
+                        "first-name": "JANE",
+                        "last-name": "smith",
+                        "address": {"city": "los angeles", "state": "ca"},
+                    }
+                },
+            ],
+            None,
+            [{"addressbook": {"first-name": "Bob", "last-name": "Jones", "address": {"city": None, "state": None}}}],
+        ],
+        "PATDOC.SDOBI.B700.B720": [
+            None,
+            [
+                {
+                    "B721": {
+                        "party": {"nam": {"fnm": "Alice", "snm": "WONDERS"}, "adr": {"city": "seattle", "state": "wa"}}
+                    }
+                }
+            ],
+            None,
+        ],
+        "us-patent-grant.us-parties.assignees.assignee": [
+            [
+                {"addressbook": {"orgname": "I.B.M.", "role": "02"}},
+                {"addressbook": {"orgname": "Google", "role": "03"}},
+            ],
+            None,
+            [{"addressbook": {"orgname": "Microsoft", "role": "01"}}],
+        ],
+        "PATDOC.SDOBI.B700.B730": [None, [{"B731": {"party": {"nam": {"onm": "APPLE INC."}, "irf": "02"}}}], None],
+    }
+
+    df = pl.DataFrame(data)
+    normalized = normalize_silver(df)
+
+    assert normalized["patent_number"].to_list() == ["1234567", "98765", "87654321"]
+    assert normalized["issue_date"].to_list() == [date(2024, 1, 1), date(2005, 12, 31), None]
+    assert normalized["title"].to_list() == ["AI SYSTEM", "OLD SYSTEM", "ANOTHER AI"]
+    assert normalized["abstract"].to_list() == [
+        "This is  a multi-paragraph  abstract.",
+        "This is an old system.",
+        None,
+    ]
+    assert normalized["kind_code"].to_list() == ["B2", "B1", "A1"]
+
+    inventors_row1 = normalized["inventors"].to_list()[0]
+    assert len(inventors_row1) == 2
+    assert inventors_row1[0]["first_name"] == "John"
+    assert inventors_row1[1]["first_name"] == "Jane"
+
+    inventors_row2 = normalized["inventors"].to_list()[1]
+    assert len(inventors_row2) == 1
+    assert inventors_row2[0]["first_name"] == "Alice"
+
+    inventors_row3 = normalized["inventors"].to_list()[2]
+    assert len(inventors_row3) == 1
+    assert inventors_row3[0]["first_name"] == "Bob"
+    assert inventors_row3[0]["city"] is None
+
+    assignees_row1 = normalized["assignees"].to_list()[0]
+    assert len(assignees_row1) == 2
+    assert assignees_row1[0]["org_name"] == "I.B.M."
+    assert assignees_row1[0]["role_code"] == "Assignee"
+    assert assignees_row1[1]["org_name"] == "Google"
+    assert assignees_row1[1]["role_code"] == "03"
+
+    assignees_row2 = normalized["assignees"].to_list()[1]
+    assert len(assignees_row2) == 1
+    assert assignees_row2[0]["org_name"] == "APPLE INC."
+
+    assignees_row3 = normalized["assignees"].to_list()[2]
+    assert len(assignees_row3) == 1
+    assert assignees_row3[0]["org_name"] == "Microsoft"
