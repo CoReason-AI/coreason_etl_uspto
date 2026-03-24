@@ -100,4 +100,15 @@ class FederatedEnvironmentPolicy(BaseSettings):
         description="Maximum expected size for streaming ZIP files in MB.",
     )
 
+    @property
+    def get_postgres_uri(self) -> str:
+        """
+        AGENT INSTRUCTION: Constructs a strictly valid, URL-encoded PostgreSQL connection URI.
+        """
+        import urllib.parse
+
+        encoded_password = urllib.parse.quote_plus(self.pgpassword)
+        encoded_user = urllib.parse.quote_plus(self.pguser)
+        return f"postgresql://{encoded_user}:{encoded_password}@{self.pghost}:{self.pgport}/{self.pgdatabase}"
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")

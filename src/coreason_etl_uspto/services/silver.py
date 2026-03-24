@@ -120,11 +120,19 @@ def normalize_silver(df: pl.DataFrame) -> pl.DataFrame:
     )
 
     # 4. Abstract Normalization
+    # abstract.p might be a string (if single paragraph) or a list of strings (if multiple)
+    # If it's a list, we need to join it.
+    abstract_p_dtype = df.schema.get("abstract.p")
+    if isinstance(abstract_p_dtype, pl.List):
+        abstract_p_expr = pl.col("abstract.p").list.join(" ")
+    else:
+        abstract_p_expr = pl.col("abstract.p").cast(pl.String)
+
     abstract = pl.coalesce(
         [
-            pl.col("abstract.p"),
-            pl.col("PATDOC.SDOAB.BTEXT.PARA"),
-            pl.col("PATDOC.ABST"),
+            abstract_p_expr,
+            pl.col("PATDOC.SDOAB.BTEXT.PARA").cast(pl.String),
+            pl.col("PATDOC.ABST").cast(pl.String),
         ]
     ).alias("abstract")
 
@@ -136,40 +144,34 @@ def normalize_silver(df: pl.DataFrame) -> pl.DataFrame:
         ]
     ).alias("kind_code")
 
+    def _normalize_xml_list(raw_list: Any) -> list[Any] | None:
+        """
+        AGENT INSTRUCTION: Ensure varied xmltodict nested lists safely parse to Python lists of dicts.
+        """
+        if raw_list is None:  # pragma: no cover
+            return None
+        if isinstance(raw_list, pl.Series):  # pragma: no cover
+            if raw_list.is_empty():
+                return None
+            raw_list = raw_list.to_list()
+        if hasattr(raw_list, "to_list"):  # pragma: no cover
+            raw_list = raw_list.to_list()
+        if not raw_list or isinstance(raw_list, str):  # pragma: no cover
+            return None
+
+        return raw_list if isinstance(raw_list, list) else [raw_list]
+
     # 6. Entity Mapping (Inventors)
-    # The requirement asks to iterate over list and extract first_name, last_name, city, state.
-    # In Polars, if the column contains a list of structs (dicts from xmltodict), we can process it
-    # But since the lists might not have uniform schemas or might be simple structs if there's only one inventor,
-    # we need to ensure they are treated as lists and then extract.
-    # We will use Polars list/struct manipulation.
     def extract_inventors(col: pl.Expr, is_red: bool) -> pl.Expr:
-        # We need to map elements because the XML parsed structure is dicts/lists of dicts which
-        # might have varied shapes that Polars nested types can't easily unify via coalesce statically.
         def process_inventor_list(inv_list: Any) -> list[dict[str, Any]] | None:
-            if inv_list is None:  # pragma: no cover
+            items = _normalize_xml_list(inv_list)
+            if items is None:
                 return None
 
-            if isinstance(inv_list, pl.Series):  # pragma: no cover
-                if inv_list.is_empty():
-                    return None
-                inv_list = inv_list.to_list()
-
-            if hasattr(inv_list, "to_list"):  # pragma: no cover
-                inv_list = inv_list.to_list()
-
-            if not inv_list:
-                return None
-
-            if isinstance(inv_list, str):  # pragma: no cover
-                return None
-
-            items = inv_list if isinstance(inv_list, list) else [inv_list]
             res: list[dict[str, Any]] = []
             for item in items:
                 try:
                     if is_red:
-                        # Red Book Path: addressbook...
-                        # XML can have 'addressbook' directly inside 'inventor'
                         ab = item.get("addressbook", {})
                         first_name = ab.get("first-name")
                         last_name = ab.get("last-name")
@@ -177,11 +179,6 @@ def normalize_silver(df: pl.DataFrame) -> pl.DataFrame:
                         city = address.get("city")
                         state = address.get("state")
                     else:
-                        # Green Book Path: B721.party...
-                        # The paths: B721.party.nam.fnm or NAM.FNM
-                        # item might be B721 directly if the list is B721s inside B720
-                        # Wait, requirement: "root_list PATDOC.SDOBI.B700.B720 Iterate over this list."
-                        # If B720 is the list, the items might contain B721
                         b721 = item.get("B721", item)
                         party = b721.get("party", b721)
                         nam = party.get("nam", party.get("NAM", {}))
@@ -232,24 +229,10 @@ def normalize_silver(df: pl.DataFrame) -> pl.DataFrame:
     # 7. Entity Mapping (Assignees)
     def extract_assignees(col: pl.Expr, is_red: bool) -> pl.Expr:
         def process_assignee_list(ass_list: Any) -> list[dict[str, Any]] | None:
-            if ass_list is None:  # pragma: no cover
+            items = _normalize_xml_list(ass_list)
+            if items is None:
                 return None
 
-            if isinstance(ass_list, pl.Series):  # pragma: no cover
-                if ass_list.is_empty():
-                    return None
-                ass_list = ass_list.to_list()
-
-            if hasattr(ass_list, "to_list"):  # pragma: no cover
-                ass_list = ass_list.to_list()
-
-            if not ass_list:
-                return None
-
-            if isinstance(ass_list, str):  # pragma: no cover
-                return None
-
-            items = ass_list if isinstance(ass_list, list) else [ass_list]
             res: list[dict[str, Any]] = []
             for item in items:
                 try:
