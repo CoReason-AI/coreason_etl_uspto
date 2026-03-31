@@ -15,8 +15,21 @@ from hypothesis import strategies as st
 from pydantic import ValidationError
 
 
-def test_default_federated_environment_policy() -> None:
-    policy = FederatedEnvironmentPolicy()
+def test_default_federated_environment_policy(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    AGENT INSTRUCTION: Ensure the default policy test is mathematically isolated 
+    from local .env files and shell environment variables.
+    """
+    # 1. Clear any shell environment variables that might interfere
+    env_vars_to_clear = [
+        "USPTO_USER_AGENT", "PGHOST", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE"
+    ]
+    for var in env_vars_to_clear:
+        monkeypatch.delenv(var, raising=False)
+        
+    # 2. Instantiate the policy while explicitly bypassing the .env file
+    policy = FederatedEnvironmentPolicy(_env_file=None)
+    
     assert policy.app_env == "development"
     assert policy.debug is False
     assert policy.log_level == "INFO"
@@ -38,7 +51,6 @@ def test_default_federated_environment_policy() -> None:
     assert policy.uspto_http_timeout == 60
     assert policy.uspto_max_retries == 3
     assert policy.uspto_max_stream_size_mb == 5120
-
 
 @given(
     app_env=st.sampled_from(["development", "testing", "production"]),

@@ -36,7 +36,6 @@ def uspto_grants(start_date: str = "2024-01-01", end_date: str = "2024-12-31") -
     discovery_url = f"{policy.uspto_grants_api_endpoint}?fileDataFromDate={start_date}&fileDataToDate={end_date}"
     all_files = fetch_zip_links(discovery_url, session)
 
-    # State tracking: Filter out files already processed
     state = dlt.current.resource_state()
     processed_files = state.setdefault("processed_files", [])
 
@@ -46,23 +45,13 @@ def uspto_grants(start_date: str = "2024-01-01", end_date: str = "2024-12-31") -
     for url in new_files:
         try:
             stream = stream_uspto_zip(url, session, policy)
-            # Grants use the <us-patent-grant> root element
-            for doc in parse_uspto_stream(stream, tag="us-patent-grant", source_url=url):
-                # Use a deterministic unique file_id logic if needed,
-                # but dlt's primary_key acts on the yielded dict
-                # The dict from parse_uspto_stream has doc['us-patent-grant']
-                # To make a robust primary_key we might need to inject one or let dlt handle it
-                # (primary_key="file_id" is defined on the decorator, so we should inject it)
-
-                # Wait, if doc is a failure record, handle it differently
+            # Enumerate to get an index for our deterministic primary key
+            for i, doc in enumerate(parse_uspto_stream(stream, tag="us-patent-grant", source_url=url)):
+                doc["file_id"] = f"{url}_{i}"  # <--- INJECTING THE PRIMARY KEY
+                
                 if doc.get("_error"):
                     yield dlt.mark.with_table_name(doc, "coreason_etl_uspto_bronze_grants_error")
                     continue
-
-                # Extract some ID for primary key - depends on schema, but we can generate one or just
-                # not enforce primary_key="file_id" strictly unless needed.
-                # Actually, doc doesn't strictly have a file_id at top level.
-                # We can inject `file_id` = doc['ingestion_meta']['source_file'] + index
 
                 yield dlt.mark.with_table_name(doc, "coreason_etl_uspto_bronze_grants")
 
@@ -70,9 +59,8 @@ def uspto_grants(start_date: str = "2024-01-01", end_date: str = "2024-12-31") -
 
         except Exception as e:
             logger.error(f"Failed to process file {url}: {e}")
-            # If the whole file fails (e.g. streaming error), we don't mark as processed
             yield dlt.mark.with_table_name(
-                {"_error": True, "error_message": str(e), "source_url": url, "context": "file_level"},
+                {"file_id": f"{url}_error", "_error": True, "error_message": str(e), "source_url": url, "context": "file_level"},
                 "coreason_etl_uspto_bronze_grants_error",
             )
 
@@ -98,9 +86,9 @@ def uspto_applications(start_date: str = "2024-01-01", end_date: str = "2024-12-
     for url in new_files:
         try:
             stream = stream_uspto_zip(url, session, policy)
-            # Applications usually use <us-patent-application> as the tag,
-            # though earlier might be different. Let's assume us-patent-application.
-            for doc in parse_uspto_stream(stream, tag="us-patent-application", source_url=url):
+            for i, doc in enumerate(parse_uspto_stream(stream, tag="us-patent-application", source_url=url)):
+                doc["file_id"] = f"{url}_{i}"  # <--- INJECTING THE PRIMARY KEY
+                
                 if doc.get("_error"):
                     yield dlt.mark.with_table_name(doc, "coreason_etl_uspto_bronze_applications_error")
                     continue
@@ -112,7 +100,7 @@ def uspto_applications(start_date: str = "2024-01-01", end_date: str = "2024-12-
         except Exception as e:
             logger.error(f"Failed to process file {url}: {e}")
             yield dlt.mark.with_table_name(
-                {"_error": True, "error_message": str(e), "source_url": url, "context": "file_level"},
+                {"file_id": f"{url}_error", "_error": True, "error_message": str(e), "source_url": url, "context": "file_level"},
                 "coreason_etl_uspto_bronze_applications_error",
             )
 

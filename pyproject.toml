@@ -20,6 +20,7 @@ dependencies = [
     "lxml>=5.1.0",
     "xmltodict>=0.13.0",
     "polars>=0.20.10",
+    "adbc-driver-postgresql>=1.10.0",
 ]
 license = { file = "LICENSE" }
 classifiers = [
@@ -52,6 +53,8 @@ dev = [
     "respx>=0.22.0",
     "requests-mock>=1.12.1",
     "responses>=0.26.0",
+    "connectorx>=0.4.5",
+    "pyarrow>=23.0.1",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -60,33 +63,14 @@ packages = ["src/coreason_etl_uspto"]
 [tool.hatch.version]
 source = "vcs"
 
-[project.urls]
-Homepage = "https://github.com/CoReason-AI/coreason_etl_uspto"
-Repository = "https://github.com/CoReason-AI/coreason_etl_uspto"
-Documentation = "https://github.com/CoReason-AI/coreason_etl_uspto"
-
 [tool.ruff]
 line-length = 120
 target-version = "py313"
 
-[tool.ruff.lint]
-select = ["E", "F", "B", "I", "UP", "SIM", "RUF", "ARG", "C4", "PT", "TCH", "FA", "PIE", "RET", "PERF", "FURB", "LOG", "N", "A", "S"]
-ignore = ["S101", "TCH001", "TCH002", "TCH003", "UP037", "PT019"]
-
 [tool.mypy]
 python_version = "3.14"
 strict = true
-disallow_untyped_defs = true
-warn_unused_ignores = false
-plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 addopts = "-n auto --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=100"
 testpaths = ["tests"]
-asyncio_mode = "auto"
-
-[tool.coverage.run]
-omit = ["tests/*"]
-
-[tool.deptry]
-ignore = ["DEP002", "DEP003"]

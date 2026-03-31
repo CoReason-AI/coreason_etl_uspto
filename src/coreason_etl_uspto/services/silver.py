@@ -318,4 +318,17 @@ def normalize_silver(df: pl.DataFrame) -> pl.DataFrame:
         )
     ).alias("assignees")
 
-    return df.with_columns([doc_number, issue_date, title, abstract, kind_code, inventors, assignees_final])
+    # Select only the clean Silver columns and the primary key/metadata from Bronze
+    meta_cols = [c for c in df.columns if c in ["file_id", "_root_element"] or c.startswith("ingestion_meta")]
+    
+    return df.select(
+        meta_cols + [
+            doc_number, 
+            issue_date, 
+            title, 
+            abstract, 
+            kind_code, 
+            inventors, 
+            assignees_final
+        ]
+    )
