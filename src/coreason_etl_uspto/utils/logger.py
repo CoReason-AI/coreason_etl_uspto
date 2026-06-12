@@ -13,7 +13,11 @@ from pathlib import Path
 
 from loguru import logger
 
+from coreason_etl_uspto.config import FederatedEnvironmentPolicy
+
 __all__ = ["logger"]
+
+_policy = FederatedEnvironmentPolicy()
 
 # Remove default handler
 logger.remove()
@@ -21,7 +25,7 @@ logger.remove()
 # Sink 1: Stdout (Human-readable)
 logger.add(
     sys.stderr,
-    level="INFO",
+    level=_policy.log_level,
     format=(
         "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
         "<level>{level: <8}</level> | "
@@ -42,5 +46,5 @@ logger.add(
     retention="10 days",
     serialize=True,
     enqueue=True,
-    level="INFO",
+    level=_policy.log_level,
 )

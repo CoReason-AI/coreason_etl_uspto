@@ -9,13 +9,5 @@
 # Source Code: https://github.com/CoReason-AI/coreason_etl_uspto
 
 """
-ETL process for integrating United States patent and trademark data
+Discovery services module.
 """
-
-__version__ = "0.1.0"
-__author__ = "Akshaya M"
-__email__ = "akshaya.movvar@coreason.ai"
-
-from .main import main, run_pipeline
-
-__all__ = ["main", "run_pipeline"]
