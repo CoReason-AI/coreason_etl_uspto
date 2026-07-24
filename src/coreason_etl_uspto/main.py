@@ -14,6 +14,7 @@ ingestion and Silver refinement layers together into a single executable workflo
 """
 
 import sys
+import json
 
 import dlt
 import polars as pl
@@ -56,12 +57,9 @@ def run_pipeline(start_date: str = "2024-01-01", end_date: str = "2024-12-31") -
     logger.info(f"Bronze Ingestion completed. Load Info: {load_info}")
 
     # 3. Process Silver Layer (Refinery Component)
-    # Using the dataset object directly attached to pipeline destination to read raw data
     try:
-        # Check what tables were actually created and loaded
         client = pipeline.sql_client()
         with client:
-            # We can run query on the loaded tables directly using the client
             for base_name in ["grants", "applications"]:
                 table_name = f"coreason_etl_uspto_bronze_{base_name}"
                 try:
@@ -71,7 +69,6 @@ def run_pipeline(start_date: str = "2024-01-01", end_date: str = "2024-12-31") -
 
     except Exception as e:
         logger.error(f"Error executing Silver refinement: {e}")
-        # Just passing the error down
         raise e
 
     logger.info("USPTO ETL Pipeline execution finished successfully.")
@@ -82,17 +79,14 @@ def _refine_bronze_table(
 ) -> pl.DataFrame | None:
     """
     AGENT INSTRUCTION: Helper function to fetch a table and refine it.
+    Serializes nested Arrow types to JSON strings and dynamically sets the write mode.
     """
     try:
-        # Use standard framework integration: read DB-API connection natively into Polars
         client = pipeline.sql_client()
         with client:
             query = f'SELECT * FROM "{policy.dlt_dataset_name}"."{table_name}"'  # noqa: S608
             conn = client.native_connection
 
-            # Use adbc engine if connectorx/adbc is installed, otherwise it falls back
-            # However, for a standard DBAPI2 connection object from psycopg2 (which dlt uses),
-            # Polars can read it directly.
             df_bronze = pl.read_database(query, connection=conn)
 
             if df_bronze.is_empty():
@@ -104,33 +98,56 @@ def _refine_bronze_table(
             # Apply silver normalization
             df_silver = normalize_silver(df_bronze)
 
+            # --- Serialize complex Arrow types (Lists/Structs) to JSON strings for ADBC ---
+            complex_cols = []
+            for col_name, dtype in zip(df_silver.columns, df_silver.dtypes):
+                if "List" in str(dtype) or "Struct" in str(dtype):
+                    complex_cols.append(col_name)
+
+            if complex_cols:
+                df_silver = df_silver.with_columns(
+                    [
+                        pl.col(c).map_elements(
+                            lambda x: json.dumps(x, default=str) if x is not None else None,
+                            return_dtype=pl.String
+                        )
+                        for c in complex_cols
+                    ]
+                )
+
             silver_table_name = f"coreason_etl_uspto_silver_{base_name}"
-            # Postgres connection string for polars write_database
+            gold_table_name = f"coreason_etl_uspto_gold_{base_name}"
             uri = policy.get_postgres_uri
 
-            # Create schemas if they do not exist
             with client.execute_query(f'CREATE SCHEMA IF NOT EXISTS "{policy.silver_schema}"'):
                 pass
             with client.execute_query(f'CREATE SCHEMA IF NOT EXISTS "{policy.gold_schema}"'):
                 pass
 
+            # --- FIX: Check if the destination tables already exist ---
+            with conn.cursor() as cur:
+                cur.execute(f"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = '{policy.silver_schema}' AND table_name = '{silver_table_name}')")
+                silver_exists = cur.fetchone()[0]
+                
+                cur.execute(f"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = '{policy.gold_schema}' AND table_name = '{gold_table_name}')")
+                gold_exists = cur.fetchone()[0]
+
             # Write back to PostgreSQL into the silver schema
             logger.info(f"Writing {len(df_silver)} records to {policy.silver_schema}.{silver_table_name}")
             df_silver.write_database(
-                table_name=f'"{policy.silver_schema}"."{silver_table_name}"',
+                table_name=f"{policy.silver_schema}.{silver_table_name}",
                 connection=uri,
-                if_table_exists="append",
+                if_table_exists="append" if silver_exists else "replace",
                 engine="adbc",
             )
             logger.info(f"Refinement of {table_name} into Silver Layer complete.")
 
-            # Create and write to the Gold schema table following naming conventions
-            gold_table_name = f"coreason_etl_uspto_gold_{base_name}"
+            # Create and write to the Gold schema table
             logger.info(f"Writing {len(df_silver)} records to {policy.gold_schema}.{gold_table_name}")
             df_silver.write_database(
-                table_name=f'"{policy.gold_schema}"."{gold_table_name}"',
+                table_name=f"{policy.gold_schema}.{gold_table_name}",
                 connection=uri,
-                if_table_exists="append",
+                if_table_exists="append" if gold_exists else "replace",
                 engine="adbc",
             )
             logger.info(f"Refinement of {table_name} into Gold Layer complete.")

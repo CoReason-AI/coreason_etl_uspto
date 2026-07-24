@@ -330,3 +330,14 @@ def test_parse_uspto_stream_failure() -> None:
         assert dicts[0]["source_url"] == url
     finally:
         xmltodict.parse = original_parse
+
+def test_stream_uspto_zip_local_file(tmp_path) -> None:
+    session = MagicMock(spec=requests.Session)
+    xml_data = b"<us-patent-grant><id>local_test</id></us-patent-grant>"
+    zip_bytes = create_mock_zip(xml_data)
+    temp_file = tmp_path / "test_local.zip"
+    temp_file.write_bytes(zip_bytes)
+    url = f"file://{temp_file}"
+    stream = stream_uspto_zip(url, session)
+    chunks = list(stream)
+    assert b"".join(chunks) == xml_data

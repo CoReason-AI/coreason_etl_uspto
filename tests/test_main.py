@@ -108,9 +108,9 @@ def test_refine_bronze_table_success(mock_normalize_silver: MagicMock, mock_read
     assert mock_df_silver.write_database.call_count == 2
     silver_write_args = mock_df_silver.write_database.call_args_list[0][1]
     gold_write_args = mock_df_silver.write_database.call_args_list[1][1]
-    assert silver_write_args["table_name"] == f'"{policy.silver_schema}"."coreason_etl_uspto_silver_grants"'
+    assert silver_write_args["table_name"] == f'{policy.silver_schema}.coreason_etl_uspto_silver_grants'
     assert "postgresql://" in silver_write_args["connection"]
-    assert gold_write_args["table_name"] == f'"{policy.gold_schema}"."coreason_etl_uspto_gold_grants"'
+    assert gold_write_args["table_name"] == f'{policy.gold_schema}.coreason_etl_uspto_gold_grants'
     assert "postgresql://" in gold_write_args["connection"]
 
 
